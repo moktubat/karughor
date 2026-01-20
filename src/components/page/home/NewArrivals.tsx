@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ProductCard } from '@/components/common/ProductCard';
-import { useLikedProducts } from '../../../../hooks/useLikedProducts';
+import { useLikedProducts } from '../../../hooks/useLikedProducts';
 
 // Sample 4 products
 const products = Array.from({ length: 4 }).map((_, i) => ({
@@ -24,7 +24,7 @@ const NewArrivals = () => {
                 <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
                     <h2 className="text-2xl font-bold text-[#0B0F0E]">New Arrivals</h2>
                     <Link href="/products">
-                        <button className="bg-[#C85A3A] hover:bg-[#A84830] text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+                        <button className="bg-[#C85A3A] hover:bg-[#A84830] text-white font-semibold px-6 py-3 rounded-lg transition-colors cursor-pointer">
                             View Products
                         </button>
                     </Link>

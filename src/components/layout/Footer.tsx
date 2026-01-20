@@ -7,7 +7,7 @@ const Footer = () => {
     return (
         <footer className="bg-[#F7F7F7] text-black w-[98%] mx-auto rounded-[20px] py-20">
             {/* Main content */}
-            <div className="max-w-300 mx-auto px-6 py-6 border-t-2 border-b-2 border-[#333] flex flex-wrap items-center justify-between gap-6">
+            <div className="max-w-300 mx-auto py-6 border-t-2 border-b-2 border-[#333] flex flex-wrap items-center justify-between gap-6">
                 {/* Brand */}
                 <div className="font-bold text-2xl tracking-widest select-none flex items-center gap-2">
                     Karughor

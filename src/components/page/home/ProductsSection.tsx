@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLikedProducts } from '../../../../hooks/useLikedProducts';
+import { useLikedProducts } from '../../../hooks/useLikedProducts';
 import { ProductCard } from '@/components/common/ProductCard';
 
 const products = Array.from({ length: 20 }).map((_, i) => ({

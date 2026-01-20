@@ -23,7 +23,7 @@ const Navbar: React.FC = () => {
 
     return (
         <nav className="bg-white w-full shadow-sm">
-            <div className="max-w-300 mx-auto px-6 py-4 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
+            <div className="max-w-300 mx-auto py-4 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
                 {/* Logo */}
                 <div
                     onClick={handleLogoClick}
