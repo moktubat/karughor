@@ -150,7 +150,7 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
+        <div className="bg-[#F7F7F7] min-h-screen ps-4 py-4">
             <div className="max-w-300 mx-auto">
                 {/* Header */}
                 <div className="mb-8">
@@ -159,42 +159,33 @@ const Dashboard = () => {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
                     {stats.map((stat, index) => (
                         <div
                             key={index}
-                            className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow duration-300"
+                            className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow"
                         >
-                            <div className="flex items-start justify-between mb-4">
+                            <div className="flex justify-between mb-4">
                                 <div className={`${stat.bgColor} p-3 rounded-lg ${stat.iconColor}`}>
                                     {stat.icon}
                                 </div>
                                 {stat.trend && (
-                                    <div
-                                        className={`flex items-center gap-1 text-sm font-semibold ${stat.trend.isUp ? 'text-green-600' : 'text-red-600'
-                                            }`}
-                                    >
-                                        {stat.trend.isUp ? (
-                                            <MdTrendingUp className="w-4 h-4" />
-                                        ) : (
-                                            <MdTrendingDown className="w-4 h-4" />
-                                        )}
+                                    <div className={`flex items-center gap-1 text-sm font-semibold ${stat.trend.isUp ? 'text-green-600' : 'text-red-600'}`}>
+                                        {stat.trend.isUp ? <MdTrendingUp /> : <MdTrendingDown />}
                                         {stat.trend.value}
                                     </div>
                                 )}
                             </div>
-                            <h3 className="text-[#818B9C] text-sm font-medium mb-1">
-                                {stat.title}
-                            </h3>
-                            <p className="text-2xl font-bold text-[#0B0F0E]">{stat.value}</p>
+                            <h3 className="text-[#818B9C] text-sm mb-1">{stat.title}</h3>
+                            <p className="text-2xl font-bold">{stat.value}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* Recent Orders & Quick Actions */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                     {/* Recent Orders */}
-                    <div className="xl:col-span-2 bg-white border border-[#E4E9EE] rounded-lg p-6">
+                    <div className="xl:col-span-2 bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-[#0B0F0E]">Recent Orders</h2>
                             <a
@@ -209,9 +200,6 @@ const Dashboard = () => {
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-[#E4E9EE]">
-                                        <th className="text-left py-3 px-2 text-sm font-semibold text-[#818B9C]">
-                                            Order ID
-                                        </th>
                                         <th className="text-left py-3 px-2 text-sm font-semibold text-[#818B9C]">
                                             Customer
                                         </th>
@@ -238,11 +226,6 @@ const Dashboard = () => {
                                             key={order.id}
                                             className="border-b border-[#E4E9EE] hover:bg-[#F7F7F7] cursor-pointer transition-colors"
                                         >
-                                            <td className="py-4 px-2">
-                                                <span className="font-semibold text-[#0B0F0E]">
-                                                    {order.id}
-                                                </span>
-                                            </td>
                                             <td className="py-4 px-2 text-[#0B0F0E]">
                                                 {order.customerName}
                                             </td>
@@ -279,7 +262,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">
                             Today's Summary
                         </h2>

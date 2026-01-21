@@ -150,7 +150,7 @@ const OrdersManagement = () => {
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-300 mx-auto">
+            <div className="max-w-[1400px] mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Orders Management</h1>
