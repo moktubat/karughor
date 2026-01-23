@@ -1,25 +1,71 @@
-"use client";
+'use client';
 
-import React, { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FaChevronDown, FaSearch, FaUser } from "react-icons/fa";
-import { FaCartPlus } from "react-icons/fa6";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { FaChevronDown, FaSearch, FaUser } from 'react-icons/fa';
+import { FaCartPlus } from 'react-icons/fa6';
+import { useAuthStore } from '@/store/authStore';
+import { authService } from '@/lib/authService';
 
 const Navbar: React.FC = () => {
     const router = useRouter();
+    const pathname = usePathname();
+    const { user, isAuthenticated, logout: logoutStore } = useAuthStore();
+
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setShowUserMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Close menu on route change
+    useEffect(() => {
+        setShowUserMenu(false);
+    }, [pathname]);
 
     const handleLogoClick = useCallback(() => {
-        router.push("/");
+        router.push('/');
     }, [router]);
 
     const handleCartClick = useCallback(() => {
-        router.push("/cart");
+        router.push('/cart');
     }, [router]);
 
     const handleUserClick = useCallback(() => {
         setShowUserMenu((prev) => !prev);
     }, []);
+
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+            await authService.logout();
+            logoutStore();
+            router.push('/');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        } finally {
+            setIsLoggingOut(false);
+            setShowUserMenu(false);
+        }
+    };
+
+    const handleProfileClick = () => {
+        if (isAuthenticated) {
+            router.push('/profile');
+        } else {
+            router.push('/login');
+        }
+    };
 
     return (
         <nav className="bg-white w-full shadow-sm">
@@ -61,7 +107,7 @@ const Navbar: React.FC = () => {
                     <button
                         onClick={handleCartClick}
                         aria-label="Shopping cart"
-                        className="hover:opacity-70 transition"
+                        className="hover:opacity-70 transition cursor-pointer"
                     >
                         <FaCartPlus className="w-6 h-6" />
                     </button>
@@ -69,11 +115,11 @@ const Navbar: React.FC = () => {
                     <div className="w-px h-6 bg-gray-300" />
 
                     {/* User */}
-                    <div className="relative">
+                    <div className="relative" ref={userMenuRef}>
                         <button
                             onClick={handleUserClick}
                             aria-label="User account"
-                            className="hover:opacity-70 transition"
+                            className="hover:opacity-70 transition cursor-pointer"
                         >
                             <FaUser className="w-6 h-6" />
                         </button>
@@ -81,26 +127,49 @@ const Navbar: React.FC = () => {
                         {showUserMenu && (
                             <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg min-w-50 overflow-hidden z-50">
                                 <div className="px-4 py-3 font-semibold border-b">
-                                    Guest User
+                                    {isAuthenticated ? user?.fullName : 'Guest User'}
                                 </div>
-                                <div
-                                    onClick={() => router.push("/profile")}
-                                    className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
-                                >
-                                    Profile
-                                </div>
-                                <div
-                                    onClick={() => router.push("/orders")}
-                                    className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
-                                >
-                                    My Orders
-                                </div>
-                                <div
-                                    onClick={() => router.push("/login")}
-                                    className="px-4 py-3 text-sm cursor-pointer text-red-500 hover:bg-red-50"
-                                >
-                                    Login
-                                </div>
+
+                                {isAuthenticated ? (
+                                    <>
+                                        <div
+                                            onClick={handleProfileClick}
+                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                        >
+                                            Profile
+                                        </div>
+
+                                        <div
+                                            onClick={() => router.push('/profile?tab=orders')}
+                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                        >
+                                            My Orders
+                                        </div>
+
+                                        <div
+                                            onClick={handleLogout}
+                                            className="px-4 py-3 text-sm cursor-pointer text-red-500 hover:bg-red-50"
+                                        >
+                                            {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div
+                                            onClick={() => router.push('/login')}
+                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                        >
+                                            Login
+                                        </div>
+
+                                        <div
+                                            onClick={() => router.push('/register')}
+                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                        >
+                                            Register
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>

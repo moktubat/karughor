@@ -2,33 +2,39 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
-
-type AdminLoginFormValues = {
-    email: string;
-    password: string;
-    rememberMe: boolean;
-};
+import { authService, type AdminLoginData } from '@/lib/authService';
 
 const AdminLogin = () => {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm<AdminLoginFormValues>({
+    } = useForm<AdminLoginData>({
         defaultValues: {
             email: '',
             password: '',
-            rememberMe: false,
         },
     });
 
-    const onSubmit = (data: AdminLoginFormValues) => {
-        console.log('Admin login submitted', data);
-        // Handle admin login - redirect to /admin/dashboard
+    const onSubmit = async (data: AdminLoginData) => {
+        try {
+            setLoading(true);
+            setError('');
+            await authService.adminLogin(data);
+            router.push('/admin/dashboard');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -51,6 +57,12 @@ const AdminLogin = () => {
                         Access your admin dashboard
                     </p>
 
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                            {error}
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
                         {/* Email */}
                         <div className="flex flex-col gap-2">
@@ -59,7 +71,7 @@ const AdminLogin = () => {
                             </label>
                             <input
                                 type="email"
-                                placeholder="admin@store.com"
+                                placeholder="admin@karughor.com"
                                 {...register('email', {
                                     required: 'Email is required',
                                     pattern: {
@@ -106,24 +118,13 @@ const AdminLogin = () => {
                             )}
                         </div>
 
-                        {/* Remember Me */}
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    {...register('rememberMe')}
-                                    className="w-4 h-4 accent-[#C85A3A]"
-                                />
-                                <span className="text-sm md:text-base">Remember me</span>
-                            </label>
-                        </div>
-
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)]"
+                            disabled={loading}
+                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Login to Dashboard
+                            {loading ? 'Logging in...' : 'Login to Dashboard'}
                         </button>
                     </form>
 

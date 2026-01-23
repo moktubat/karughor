@@ -161,8 +161,8 @@ const ProductDetails: React.FC = () => {
     }, [nextImage, prevImage]);
 
     return (
-        <div className="bg-white w-full py-12 md:py-20">
-            <div className="max-w-[1200px] mx-auto px-4 md:px-6">
+        <div className="bg-white w-full py-12 md:pt-10 md:pb-20">
+            <div className="max-w-300 mx-auto px-4 md:px-0">
                 {/* Breadcrumbs */}
                 <nav
                     className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap"
@@ -349,9 +349,9 @@ const ProductDetails: React.FC = () => {
                             {PRODUCT_DETAILS.description}
                         </p>
 
-                        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start w-full">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 justify-between items-start w-full">
                             {/* Specifications */}
-                            <div className="flex-1 min-w-0">
+                            <div>
                                 <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
                                     Specifications
                                 </h2>
@@ -372,7 +372,8 @@ const ProductDetails: React.FC = () => {
                             </div>
 
                             {/* In The Box */}
-                            <div className="flex-1 min-w-0">
+
+                            <div>
                                 <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
                                     In The Box
                                 </h2>
@@ -384,8 +385,10 @@ const ProductDetails: React.FC = () => {
                                         </li>
                                     ))}
                                 </ul>
+                            </div>
 
-                                {/* System Requirements */}
+                            {/* System Requirements */}
+                            <div>
                                 <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
                                     System Required
                                 </h2>
@@ -397,6 +400,7 @@ const ProductDetails: React.FC = () => {
                                     ))}
                                 </ul>
                             </div>
+
                         </div>
                     </div>
                 </section>

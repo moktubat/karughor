@@ -2,64 +2,72 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-
-type LoginFormValues = {
-    email: string;
-    password: string;
-    rememberMe: boolean;
-};
+import { authService, type LoginData } from '@/lib/authService';
 
 const Login = () => {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm<LoginFormValues>({
+    } = useForm<LoginData>({
         defaultValues: {
-            email: '',
+            phone: '',
             password: '',
-            rememberMe: false,
         },
     });
 
-    const onSubmit = (data: LoginFormValues) => {
-        console.log('Login submitted', data);
+    const onSubmit = async (data: LoginData) => {
+        try {
+            setLoading(true);
+            setError('');
+            await authService.login(data);
+            router.push('/profile');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="bg-white w-full min-h-screen flex items-center justify-center py-12 px-4">
             <div className="max-w-120 w-full">
-                {/* Login Form */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-8 md:p-10">
                     <h1 className="text-3xl md:text-4xl font-semibold text-[#0B0F0E] mb-8 text-center">
                         Login
                     </h1>
 
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                            {error}
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-                        {/* Email */}
+                        {/* Phone */}
                         <div className="flex flex-col gap-2">
                             <label className="text-base font-medium text-[#0B0F0E]">
-                                Email Address
+                                Phone Number
                             </label>
                             <input
-                                type="email"
-                                placeholder="Enter your email"
-                                {...register('email', {
-                                    required: 'Email is required',
-                                    pattern: {
-                                        value: /^\S+@\S+$/i,
-                                        message: 'Invalid email address',
-                                    },
+                                type="tel"
+                                placeholder="Enter your phone number"
+                                {...register('phone', {
+                                    required: 'Phone is required',
                                 })}
                                 className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                             />
-                            {errors.email && (
+                            {errors.phone && (
                                 <span className="text-sm text-red-500">
-                                    {errors.email.message}
+                                    {errors.phone.message}
                                 </span>
                             )}
                         </div>
@@ -98,17 +106,8 @@ const Login = () => {
                             )}
                         </div>
 
-                        {/* Remember / Forgot */}
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    {...register('rememberMe')}
-                                    className="w-4 h-4 accent-[#C85A3A]"
-                                />
-                                <span className="text-sm md:text-base">Remember me</span>
-                            </label>
-
+                        {/* Forgot Password */}
+                        <div className="flex items-center justify-end">
                             <Link
                                 href="/forgot-password"
                                 className="text-sm md:text-base text-[#C85A3A] hover:underline"
@@ -120,9 +119,10 @@ const Login = () => {
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830]"
+                            disabled={loading}
+                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Login
+                            {loading ? 'Logging in...' : 'Login'}
                         </button>
 
                         {/* Register */}

@@ -25,6 +25,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const pathname = usePathname();
 
+    // Don't show layout on login page
+    if (pathname === '/admin/login') {
+        return <>{children}</>;
+    }
+
     const menuItems = [
         { name: 'Dashboard', href: '/admin/dashboard', icon: FaTachometerAlt },
         { name: 'Orders', href: '/admin/orders', icon: FaShoppingCart },

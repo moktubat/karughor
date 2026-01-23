@@ -2,52 +2,61 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-
-type RegisterFormValues = {
-    fullName: string;
-    phoneNumber: string;
-    email?: string;
-    password: string;
-    confirmPassword: string;
-    agreeToTerms: boolean;
-};
+import { authService, type RegisterData } from '@/lib/authService';
 
 const Register = () => {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const {
         register,
         handleSubmit,
         watch,
         formState: { errors },
-    } = useForm<RegisterFormValues>({
+    } = useForm<RegisterData>({
         defaultValues: {
             fullName: '',
-            phoneNumber: '',
+            phone: '',
             email: '',
             password: '',
             confirmPassword: '',
-            agreeToTerms: false,
         },
     });
 
     const password = watch('password');
 
-    const onSubmit = (data: RegisterFormValues) => {
-        console.log('Register submitted', data);
+    const onSubmit = async (data: RegisterData) => {
+        try {
+            setLoading(true);
+            setError('');
+            await authService.register(data);
+            router.push('/profile');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Registration failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="bg-white w-full min-h-screen flex items-center justify-center py-12 px-4">
             <div className="max-w-120 w-full">
-                {/* Register Form */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-8 md:p-10">
                     <h1 className="text-3xl md:text-4xl font-semibold text-[#0B0F0E] mb-8 text-center">
                         Create Account
                     </h1>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                            {error}
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
                         {/* Full Name */}
@@ -82,7 +91,7 @@ const Register = () => {
                             <input
                                 type="tel"
                                 placeholder="Enter your phone number"
-                                {...register('phoneNumber', {
+                                {...register('phone', {
                                     required: 'Phone number is required',
                                     pattern: {
                                         value: /^[0-9+\-\s()]+$/,
@@ -95,9 +104,9 @@ const Register = () => {
                                 })}
                                 className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                             />
-                            {errors.phoneNumber && (
+                            {errors.phone && (
                                 <span className="text-sm text-red-500">
-                                    {errors.phoneNumber.message}
+                                    {errors.phone.message}
                                 </span>
                             )}
                         </div>
@@ -195,44 +204,13 @@ const Register = () => {
                             )}
                         </div>
 
-                        {/* Terms & Conditions */}
-                        <div className="flex items-start gap-2">
-                            <input
-                                type="checkbox"
-                                {...register('agreeToTerms', {
-                                    required: 'You must agree to the terms and conditions',
-                                })}
-                                className="w-4 h-4 mt-1 accent-[#C85A3A] cursor-pointer"
-                            />
-                            <label className="text-sm md:text-base text-[#0B0F0E] cursor-pointer">
-                                I agree to the{' '}
-                                <Link
-                                    href="/terms"
-                                    className="text-[#C85A3A] hover:underline"
-                                >
-                                    Terms & Conditions
-                                </Link>
-                                {' '}and{' '}
-                                <Link
-                                    href="/privacy"
-                                    className="text-[#C85A3A] hover:underline"
-                                >
-                                    Privacy Policy
-                                </Link>
-                            </label>
-                        </div>
-                        {errors.agreeToTerms && (
-                            <span className="text-sm text-red-500 -mt-4">
-                                {errors.agreeToTerms.message}
-                            </span>
-                        )}
-
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0 mt-2"
+                            disabled={loading}
+                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Create Account
+                            {loading ? 'Creating Account...' : 'Create Account'}
                         </button>
 
                         {/* Login Link */}
