@@ -18,6 +18,7 @@ interface Product {
     category: string;
     price: number;
     stock: number;
+    description: string;
     image: string;
     isActive: boolean;
 }
@@ -39,6 +40,7 @@ const ProductsManagement = () => {
             category: 'Gaming Mouse',
             price: 89,
             stock: 45,
+            description: 'High-performance gaming mouse with HERO sensor',
             image: 'https://images.unsplash.com/photo-1527814050087-3793815479db?w=400',
             isActive: true,
         },
@@ -48,6 +50,7 @@ const ProductsManagement = () => {
             category: 'Gaming Headset',
             price: 280,
             stock: 5,
+            description: 'High-performance gaming mouse with HERO sensor',
             image: 'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400',
             isActive: true,
         },
@@ -57,6 +60,7 @@ const ProductsManagement = () => {
             category: 'Keyboard',
             price: 120,
             stock: 0,
+            description: 'High-performance gaming mouse with HERO sensor',
             image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400',
             isActive: false,
         },
@@ -66,6 +70,7 @@ const ProductsManagement = () => {
             category: 'Furniture',
             price: 450,
             stock: 12,
+            description: 'High-performance gaming mouse with HERO sensor',
             image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=400',
             isActive: true,
         },

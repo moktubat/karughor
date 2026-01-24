@@ -1,13 +1,10 @@
-'use client';
-
+import { Suspense } from 'react';
 import UserProfile from "@/components/page/UserProfile/UserProfile";
 
-const page = () => {
+export default function Page() {
     return (
-        <div>
+        <Suspense fallback={<div>Loading profile...</div>}>
             <UserProfile />
-        </div>
+        </Suspense>
     );
-};
-
-export default page;
+}

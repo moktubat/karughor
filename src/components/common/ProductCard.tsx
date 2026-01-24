@@ -11,7 +11,7 @@ interface ProductCardProps {
     id: number;
     name: string;
     image: string;
-    originalPrice: string;
+    originalPrice?: string;
     salePrice: string;
     discount?: string;
     rating?: string;
@@ -93,8 +93,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <h3 className="text-lg font-semibold text-[#0B0F0E] mb-2 leading-snug">{name}</h3>
                 <div className="flex justify-between items-center mt-2">
                     <div className="flex items-center gap-3">
-                        <span className="text-sm text-[#919EAB] line-through">{originalPrice}</span>
-                        <span className="text-base font-semibold text-[#C85A3A]">{salePrice}</span>
+                        {originalPrice && (
+                            <span className="text-sm text-[#919EAB] line-through">
+                                {originalPrice}
+                            </span>
+                        )}
+                        <span className="text-base font-semibold text-[#C85A3A]">
+                            {salePrice}
+                        </span>
                     </div>
                     <div className="flex items-center gap-1 text-base text-[#FFA500]">
                         <FaRegStar className="w-4 h-4" /> {rating}
