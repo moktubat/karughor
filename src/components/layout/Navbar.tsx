@@ -10,11 +10,14 @@ import { authService } from '@/lib/authService';
 const Navbar: React.FC = () => {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, isAuthenticated, logout: logoutStore } = useAuthStore();
+    const { user, isAuthenticated, logout: logoutStore, admin, isAdminAuthenticated } = useAuthStore();
 
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+    // Determine if we're on admin pages
+    const isAdminPage = pathname.startsWith('/admin');
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -50,17 +53,20 @@ const Navbar: React.FC = () => {
             setIsLoggingOut(true);
             setShowUserMenu(false);
 
-            // Logout and clear state
-            await authService.logout();
-            logoutStore();
-
-            // Force reload to home page
-            window.location.href = '/';
+            if (isAdminPage) {
+                // Admin logout
+                await authService.adminLogout();
+                window.location.href = '/admin/login';
+            } else {
+                // User logout
+                await authService.logout();
+                logoutStore();
+                window.location.href = '/';
+            }
         } catch (error) {
             console.error('Logout failed:', error);
-            // Even if API fails, still clear local state and redirect
             logoutStore();
-            window.location.href = '/';
+            window.location.href = isAdminPage ? '/admin/login' : '/';
         } finally {
             setIsLoggingOut(false);
         }
@@ -68,12 +74,21 @@ const Navbar: React.FC = () => {
 
     const handleProfileClick = () => {
         setShowUserMenu(false);
-        if (isAuthenticated) {
+        if (isAdminPage) {
+            router.push('/admin/profile');
+        } else if (isAuthenticated) {
             router.push('/profile');
         } else {
             router.push('/login');
         }
     };
+
+    // Determine current user name and auth status
+    const currentUserName = isAdminPage
+        ? (admin?.fullName || 'Guest User')
+        : (user?.fullName || 'Guest User');
+
+    const currentIsAuthenticated = isAdminPage ? isAdminAuthenticated : isAuthenticated;
 
     return (
         <nav className="bg-white w-full shadow-sm">
@@ -111,16 +126,19 @@ const Navbar: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-4 relative">
-                    {/* Cart */}
-                    <button
-                        onClick={handleCartClick}
-                        aria-label="Shopping cart"
-                        className="hover:opacity-70 transition cursor-pointer"
-                    >
-                        <FaCartPlus className="w-6 h-6" />
-                    </button>
-
-                    <div className="w-px h-6 bg-gray-300" />
+                    {/* Cart - Hide on admin pages */}
+                    {!isAdminPage && (
+                        <>
+                            <button
+                                onClick={handleCartClick}
+                                aria-label="Shopping cart"
+                                className="hover:opacity-70 transition cursor-pointer"
+                            >
+                                <FaCartPlus className="w-6 h-6" />
+                            </button>
+                            <div className="w-px h-6 bg-gray-300" />
+                        </>
+                    )}
 
                     {/* User */}
                     <div className="relative" ref={userMenuRef}>
@@ -135,10 +153,15 @@ const Navbar: React.FC = () => {
                         {showUserMenu && (
                             <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg min-w-50 overflow-hidden z-50">
                                 <div className="px-4 py-3 font-semibold border-b">
-                                    {isAuthenticated ? user?.fullName : 'Guest User'}
+                                    {currentUserName}
+                                    {isAdminPage && admin && (
+                                        <span className="block text-xs text-[#818B9C] font-normal mt-1">
+                                            {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                                        </span>
+                                    )}
                                 </div>
 
-                                {isAuthenticated ? (
+                                {currentIsAuthenticated ? (
                                     <>
                                         <div
                                             onClick={handleProfileClick}
@@ -147,15 +170,17 @@ const Navbar: React.FC = () => {
                                             Profile
                                         </div>
 
-                                        <div
-                                            onClick={() => {
-                                                setShowUserMenu(false);
-                                                router.push('/profile?tab=orders');
-                                            }}
-                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
-                                        >
-                                            My Orders
-                                        </div>
+                                        {!isAdminPage && (
+                                            <div
+                                                onClick={() => {
+                                                    setShowUserMenu(false);
+                                                    router.push('/profile?tab=orders');
+                                                }}
+                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                            >
+                                                My Orders
+                                            </div>
+                                        )}
 
                                         <div
                                             onClick={handleLogout}
@@ -169,22 +194,24 @@ const Navbar: React.FC = () => {
                                         <div
                                             onClick={() => {
                                                 setShowUserMenu(false);
-                                                router.push('/login');
+                                                router.push(isAdminPage ? '/admin/login' : '/login');
                                             }}
                                             className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
                                         >
                                             Login
                                         </div>
 
-                                        <div
-                                            onClick={() => {
-                                                setShowUserMenu(false);
-                                                router.push('/register');
-                                            }}
-                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
-                                        >
-                                            Register
-                                        </div>
+                                        {!isAdminPage && (
+                                            <div
+                                                onClick={() => {
+                                                    setShowUserMenu(false);
+                                                    router.push('/register');
+                                                }}
+                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                            >
+                                                Register
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>

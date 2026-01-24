@@ -1,13 +1,10 @@
-'use client';
+import { Suspense } from 'react';
+import Login from '@/components/page/login/login';
 
-import Login from "@/components/page/login/login";
-
-const page = () => {
+export default function Page() {
     return (
-        <div>
+        <Suspense fallback={<div>Loading profile...</div>}>
             <Login />
-        </div>
+        </Suspense>
     );
-};
-
-export default page;
+}

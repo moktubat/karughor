@@ -4,60 +4,46 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Get tokens from cookies
+    console.log('🔵 [Middleware] Request:', pathname);
+
+    // Try to get tokens from cookies first (fallback)
     const userToken = request.cookies.get('user_token')?.value;
     const adminToken = request.cookies.get('admin_token')?.value;
 
-    // ========================================
-    // ADMIN ROUTES PROTECTION
-    // ========================================
+    // Admin routes
     if (pathname.startsWith('/admin')) {
-        // Allow access to admin login page
         if (pathname === '/admin/login') {
-            // If already logged in as admin, redirect to dashboard
+            // If already has admin token cookie, redirect to dashboard
             if (adminToken) {
+                console.log('🔄 [Middleware] Admin already logged in, redirecting to dashboard');
                 return NextResponse.redirect(new URL('/admin/dashboard', request.url));
             }
             return NextResponse.next();
         }
 
-        // Protect all other admin routes
-        if (!adminToken) {
-            return NextResponse.redirect(new URL('/admin/login', request.url));
-        }
-
-        // TODO: Verify JWT token here
-        // You can decode the token and check if it's valid
-        // For now, we'll just check if it exists
-
+        // For other admin routes, we can't check localStorage in middleware
+        // So we'll let the page handle the check
+        // The auth check will happen client-side in the admin layout
         return NextResponse.next();
     }
 
-    // ========================================
-    // USER ROUTES PROTECTION
-    // ========================================
+    // User protected routes
     const protectedUserRoutes = ['/profile'];
 
     if (protectedUserRoutes.some(route => pathname.startsWith(route))) {
-        if (!userToken) {
-            // Redirect to login with return URL
-            const url = new URL('/login', request.url);
-            url.searchParams.set('redirect', pathname);
-            return NextResponse.redirect(url);
-        }
-
-        // TODO: Verify JWT token here
+        // Can't check localStorage in middleware, let page handle it
         return NextResponse.next();
     }
 
-    // ========================================
-    // AUTH ROUTES (Login/Register)
-    // ========================================
+    // Auth routes (login/register)
     const authRoutes = ['/login', '/register'];
 
     if (authRoutes.includes(pathname)) {
-        // If already logged in, redirect to profile
         if (userToken) {
+            const redirect = request.nextUrl.searchParams.get('redirect');
+            if (redirect) {
+                return NextResponse.redirect(new URL(redirect, request.url));
+            }
             return NextResponse.redirect(new URL('/profile', request.url));
         }
     }
@@ -65,17 +51,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
 }
 
-// Configure which routes to run middleware on
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - api (API routes)
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - public folder
-         */
         '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|public).*)',
     ],
 };

@@ -11,12 +11,26 @@ import { useAuthStore } from '@/store/authStore';
 const Login = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { setUser } = useAuthStore();
+    const { setUser, user, isAuthenticated } = useAuthStore();
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const redirectUrl = searchParams.get('redirect') || '/profile';
+
+    // FIX: Redirect if already authenticated
+    useEffect(() => {
+        console.log('🔵 [Login] Checking auth state:', {
+            isAuthenticated,
+            hasUser: !!user,
+            redirectUrl
+        });
+
+        if (isAuthenticated && user) {
+            console.log('🔄 [Login] Already authenticated, redirecting to:', redirectUrl);
+            router.replace(redirectUrl);
+        }
+    }, [isAuthenticated, user, router, redirectUrl]);
 
     const {
         register,
@@ -30,31 +44,52 @@ const Login = () => {
     });
 
     const onSubmit = async (data: LoginData) => {
+        console.log('🟢 Login Form Submitted', {
+            phone: data.phone,
+            timestamp: new Date().toISOString()
+        });
+
         try {
             setLoading(true);
             setError('');
 
+            console.log('🟡 Calling authService.login...');
             const response = await authService.login(data);
 
+            console.log('🟢 Login Response Received', {
+                success: response.success,
+                hasUser: !!response.data?.user,
+            });
+
             if (response.success && response.data.user) {
-                // Update store
+                console.log('🟡 Setting user in store...');
                 setUser(response.data.user);
 
-                // Force a small delay to ensure state is updated
+                // Wait for state update
                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                // Redirect using window.location for guaranteed navigation
-                window.location.href = redirectUrl;
+                console.log('🔄 Redirecting to:', redirectUrl);
+                // Use replace instead of push to avoid back button issues
+                router.replace(redirectUrl);
             } else {
                 throw new Error('Login failed');
             }
         } catch (err: any) {
-            console.error('Login error:', err);
+            console.error('❌ Login Error:', err);
             setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }
     };
+
+    // Show loading while checking auth
+    if (isAuthenticated && user) {
+        return (
+            <div className="bg-white w-full min-h-screen flex items-center justify-center">
+                <div className="text-lg text-[#818B9C]">Redirecting...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white w-full min-h-screen flex items-center justify-center py-12 px-4">

@@ -1,10 +1,13 @@
 import { Suspense } from 'react';
-import UserProfile from "@/components/page/UserProfile/UserProfile";
+import UserProfile from '@/components/page/UserProfile/UserProfile';
+import { AuthGuard } from '@/components/AuthGuard';
 
 export default function Page() {
     return (
-        <Suspense fallback={<div>Loading profile...</div>}>
-            <UserProfile />
-        </Suspense>
+        <AuthGuard>
+            <Suspense fallback={<div>Loading profile...</div>}>
+                <UserProfile />
+            </Suspense>
+        </AuthGuard>
     );
 }

@@ -91,7 +91,7 @@ const AdminProfile = () => {
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-[1200px] mx-auto">
+            <div className="max-w-300 mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Admin Profile</h1>
@@ -141,8 +141,8 @@ const AdminProfile = () => {
                                 <button
                                     onClick={() => setActiveTab('profile')}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'profile'
-                                            ? 'bg-[#C85A3A] text-white'
-                                            : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                        ? 'bg-[#C85A3A] text-white'
+                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
                                 >
                                     <FaUser />
@@ -151,8 +151,8 @@ const AdminProfile = () => {
                                 <button
                                     onClick={() => setActiveTab('store')}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'store'
-                                            ? 'bg-[#C85A3A] text-white'
-                                            : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                        ? 'bg-[#C85A3A] text-white'
+                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
                                 >
                                     <FaStore />
@@ -161,8 +161,8 @@ const AdminProfile = () => {
                                 <button
                                     onClick={() => setActiveTab('password')}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'password'
-                                            ? 'bg-[#C85A3A] text-white'
-                                            : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                        ? 'bg-[#C85A3A] text-white'
+                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
                                 >
                                     <FaLock />

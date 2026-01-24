@@ -25,23 +25,38 @@ const AdminLogin = () => {
     });
 
     const onSubmit = async (data: AdminLoginData) => {
+        console.log('🟢 Admin Login Form Submitted', {
+            email: data.email,
+            timestamp: new Date().toISOString()
+        });
+
         try {
             setLoading(true);
             setError('');
-            
+
+            console.log('🟡 Calling authService.adminLogin...');
             const response = await authService.adminLogin(data);
-            
+
+            console.log('🟢 Admin Login Response Received', {
+                success: response.success,
+                hasAdmin: !!response.data?.admin,
+            });
+
             if (response.success) {
-                // Force a small delay to ensure cookie is set
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Use window.location for guaranteed navigation
+                console.log('🟡 Login successful, waiting for cookie...');
+
+                // Wait for cookie to be set
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                console.log('🔄 Redirecting to /admin/dashboard');
+
+                // Force hard navigation to ensure middleware runs
                 window.location.href = '/admin/dashboard';
             } else {
                 throw new Error('Login failed');
             }
         } catch (err: any) {
-            console.error('Admin login error:', err);
+            console.error('❌ Admin Login Error:', err);
             setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
