@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -20,6 +20,7 @@ import { MdKeyboardArrowRight } from 'react-icons/md';
 import { useAuthStore } from '@/store/authStore';
 import { userService, type UpdateProfileData } from '@/lib/userService';
 import { authService } from '@/lib/authService';
+import Image from 'next/image';
 
 interface ProfileFormValues {
     fullName: string;
@@ -84,20 +85,47 @@ const UserProfile = () => {
         },
     });
 
+    // Form for profile - Initialize properly
     const {
         register,
         handleSubmit,
+        reset: resetProfile,
         formState: { errors },
     } = useForm<ProfileFormValues>({
         defaultValues: {
-            fullName: profileData?.data?.user?.fullName || user?.fullName || '',
-            phone: profileData?.data?.user?.phone || user?.phone || '',
-            email: profileData?.data?.user?.email || user?.email || '',
-            address: profileData?.data?.user?.address?.street || '',
-            city: profileData?.data?.user?.address?.city || '',
-            area: profileData?.data?.user?.address?.area || '',
+            fullName: '',
+            phone: '',
+            email: '',
+            address: '',
+            city: '',
+            area: '',
         },
     });
+
+    // Update form when profile data loads
+    useEffect(() => {
+        if (profileData?.data?.user) {
+            const userData = profileData.data.user;
+            resetProfile({
+                fullName: userData.fullName || '',
+                phone: userData.phone || '',
+                email: userData.email || '',
+                address: userData.address?.street || '',
+                city: userData.address?.city || '',
+                area: userData.address?.area || '',
+            });
+        } else if (user) {
+            // Fallback to auth store user
+            resetProfile({
+                fullName: user.fullName || '',
+                phone: user.phone || '',
+                email: user.email || '',
+                address: user.address?.street || '',
+                city: user.address?.city || '',
+                area: user.address?.area || '',
+            });
+        }
+    }, [profileData, user, resetProfile]);
 
     const {
         register: registerPassword,
@@ -132,14 +160,22 @@ const UserProfile = () => {
         }
     };
 
+    // Fixed logout handler
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
+
+            // Logout and clear state
             await authService.logout();
             logoutStore();
-            router.push('/');
+
+            // Force reload to home page
+            window.location.href = '/';
         } catch (error) {
             console.error('Logout failed:', error);
+            // Even if API fails, still clear local state and redirect
+            logoutStore();
+            window.location.href = '/';
         } finally {
             setIsLoggingOut(false);
         }
@@ -164,6 +200,9 @@ const UserProfile = () => {
         );
     }
 
+    // Get current user data
+    const currentUser = profileData?.data?.user || user;
+
     return (
         <div className="bg-[#F7F7F7] w-full min-h-screen py-12 px-4">
             <div className="max-w-300 mx-auto">
@@ -184,27 +223,38 @@ const UserProfile = () => {
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative group">
                                     <div className="w-32 h-32 rounded-full bg-[#F6F6F6] flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
-                                        <FaUser className="w-16 h-16 text-[#818B9C]" />
+                                        {currentUser?.profileImage ? (
+                                            <Image
+                                                src={currentUser.profileImage}
+                                                alt={currentUser.fullName}
+                                                width={64}
+                                                height={64}
+                                                className="object-cover rounded-full"
+                                                priority
+                                            />
+                                        ) : (
+                                            <FaUser className="w-16 h-16 text-[#818B9C]" />
+                                        )}
                                     </div>
                                     <div className="absolute bottom-0 right-0 w-10 h-10 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center cursor-not-allowed">
                                         <FaCamera className="w-4 h-4" />
                                     </div>
                                     {/* Tooltip */}
-                                    <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-3 py-2 rounded whitespace-nowrap">
+                                    <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-3 py-2 rounded whitespace-nowrap z-10">
                                         Upload disabled
                                     </div>
                                 </div>
                                 <h3 className="text-lg font-semibold text-[#0B0F0E] mt-4">
-                                    {user?.fullName || 'User'}
+                                    {currentUser?.fullName || 'User'}
                                 </h3>
-                                <p className="text-sm text-[#818B9C]">{user?.phone}</p>
+                                <p className="text-sm text-[#818B9C]">{currentUser?.phone}</p>
                             </div>
 
                             {/* Navigation */}
                             <nav className="space-y-2">
                                 <button
                                     onClick={() => setActiveTab('profile')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${activeTab === 'profile'
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'profile'
                                         ? 'bg-[#C85A3A] text-white'
                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
@@ -214,7 +264,7 @@ const UserProfile = () => {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('orders')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${activeTab === 'orders'
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'orders'
                                         ? 'bg-[#C85A3A] text-white'
                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
@@ -224,7 +274,7 @@ const UserProfile = () => {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('wishlist')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${activeTab === 'wishlist'
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'wishlist'
                                         ? 'bg-[#C85A3A] text-white'
                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
@@ -234,7 +284,7 @@ const UserProfile = () => {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('password')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all cursor-pointer ${activeTab === 'password'
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'password'
                                         ? 'bg-[#C85A3A] text-white'
                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                         }`}
@@ -248,7 +298,7 @@ const UserProfile = () => {
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="w-full mt-6 px-4 py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full mt-6 px-4 py-3 border border-red-500 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoggingOut ? 'Logging out...' : 'Logout'}
                             </button>
@@ -264,7 +314,7 @@ const UserProfile = () => {
                                     <h2 className="text-2xl font-bold text-[#0B0F0E]">Profile Information</h2>
                                     <button
                                         onClick={() => setIsEditing(!isEditing)}
-                                        className="flex items-center gap-2 px-4 py-2 border border-[#C85A3A] text-[#C85A3A] rounded-lg cursor-pointer hover:bg-[#C85A3A] hover:text-white transition-all"
+                                        className="flex items-center gap-2 px-4 py-2 border border-[#C85A3A] text-[#C85A3A] rounded-lg hover:bg-[#C85A3A] hover:text-white transition-all"
                                     >
                                         <FaEdit />
                                         {isEditing ? 'Cancel' : 'Edit'}
@@ -360,7 +410,7 @@ const UserProfile = () => {
                                         <button
                                             type="submit"
                                             disabled={updateProfileMutation.isPending}
-                                            className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg cursor-pointer font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
                                         </button>

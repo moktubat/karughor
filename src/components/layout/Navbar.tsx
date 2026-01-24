@@ -48,18 +48,26 @@ const Navbar: React.FC = () => {
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
+            setShowUserMenu(false);
+
+            // Logout and clear state
             await authService.logout();
             logoutStore();
-            router.push('/');
+
+            // Force reload to home page
+            window.location.href = '/';
         } catch (error) {
             console.error('Logout failed:', error);
+            // Even if API fails, still clear local state and redirect
+            logoutStore();
+            window.location.href = '/';
         } finally {
             setIsLoggingOut(false);
-            setShowUserMenu(false);
         }
     };
 
     const handleProfileClick = () => {
+        setShowUserMenu(false);
         if (isAuthenticated) {
             router.push('/profile');
         } else {
@@ -140,7 +148,10 @@ const Navbar: React.FC = () => {
                                         </div>
 
                                         <div
-                                            onClick={() => router.push('/profile?tab=orders')}
+                                            onClick={() => {
+                                                setShowUserMenu(false);
+                                                router.push('/profile?tab=orders');
+                                            }}
                                             className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
                                         >
                                             My Orders
@@ -156,14 +167,20 @@ const Navbar: React.FC = () => {
                                 ) : (
                                     <>
                                         <div
-                                            onClick={() => router.push('/login')}
+                                            onClick={() => {
+                                                setShowUserMenu(false);
+                                                router.push('/login');
+                                            }}
                                             className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
                                         >
                                             Login
                                         </div>
 
                                         <div
-                                            onClick={() => router.push('/register')}
+                                            onClick={() => {
+                                                setShowUserMenu(false);
+                                                router.push('/register');
+                                            }}
                                             className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
                                         >
                                             Register

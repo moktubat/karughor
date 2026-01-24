@@ -1,17 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { authService, type LoginData } from '@/lib/authService';
+import { useAuthStore } from '@/store/authStore';
 
 const Login = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { setUser } = useAuthStore();
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const redirectUrl = searchParams.get('redirect') || '/profile';
 
     const {
         register,
@@ -28,10 +33,24 @@ const Login = () => {
         try {
             setLoading(true);
             setError('');
-            await authService.login(data);
-            router.push('/profile');
+
+            const response = await authService.login(data);
+
+            if (response.success && response.data.user) {
+                // Update store
+                setUser(response.data.user);
+
+                // Force a small delay to ensure state is updated
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Redirect using window.location for guaranteed navigation
+                window.location.href = redirectUrl;
+            } else {
+                throw new Error('Login failed');
+            }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed');
+            console.error('Login error:', err);
+            setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }

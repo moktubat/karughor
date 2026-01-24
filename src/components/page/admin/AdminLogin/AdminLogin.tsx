@@ -28,10 +28,21 @@ const AdminLogin = () => {
         try {
             setLoading(true);
             setError('');
-            await authService.adminLogin(data);
-            router.push('/admin/dashboard');
+            
+            const response = await authService.adminLogin(data);
+            
+            if (response.success) {
+                // Force a small delay to ensure cookie is set
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Use window.location for guaranteed navigation
+                window.location.href = '/admin/dashboard';
+            } else {
+                throw new Error('Login failed');
+            }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed');
+            console.error('Admin login error:', err);
+            setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }
