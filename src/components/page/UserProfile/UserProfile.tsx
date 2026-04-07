@@ -21,6 +21,7 @@ import { useAuthStore } from '@/store/authStore';
 import { userService, type UpdateProfileData } from '@/lib/userService';
 import { authService } from '@/lib/authService';
 import Image from 'next/image';
+import axios from 'axios';
 
 interface ProfileFormValues {
     fullName: string;
@@ -152,11 +153,15 @@ const UserProfile = () => {
 
     const onSubmitPassword = async (data: PasswordFormValues) => {
         try {
-            // Note: You need to create this endpoint in backend
-            alert('Password change functionality - backend endpoint needed');
+            await axios.put(
+                `${process.env.NEXT_PUBLIC_API_URL}/users/change-password`,
+                { currentPassword: data.currentPassword, newPassword: data.newPassword },
+                { withCredentials: true }
+            );
+            alert('Password changed successfully!');
             resetPassword();
         } catch (error: any) {
-            alert(error.response?.data?.message || 'Failed to change password');
+            alert(error.response?.data?.error?.message || 'Failed to change password');
         }
     };
 

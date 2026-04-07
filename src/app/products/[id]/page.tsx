@@ -1,14 +1,11 @@
-'use client';
+import { Suspense } from 'react';
+import ProductDetails from '@/components/page/productDetails/ProductDetails';
+import ProductDetailsSkeleton from '@/components/page/productDetails/ProductDetailsSkeleton';
 
-import ProductDetails from "@/components/page/productDetails/ProductDetails";
-
-
-const page = () => {
+export default function ProductDetailsPage() {
     return (
-        <div>
+        <Suspense fallback={<ProductDetailsSkeleton />}>
             <ProductDetails />
-        </div>
+        </Suspense>
     );
-};
-
-export default page;
+}

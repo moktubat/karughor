@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FaSave, FaToggleOn, FaToggleOff } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { FaSave, FaSpinner } from 'react-icons/fa';
 
-interface Settings {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+
+function getAdminToken() {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
+}
+
+interface ISettings {
     codEnabled: boolean;
     maxCodAmount: number;
     insideDhakaCharge: number;
@@ -13,244 +22,186 @@ interface Settings {
     autoCancelHours: number;
 }
 
+const DEFAULT: ISettings = {
+    codEnabled: true,
+    maxCodAmount: 50000,
+    insideDhakaCharge: 70,
+    outsideDhakaCharge: 120,
+    taxPercentage: 0,
+    autoCancel: false,
+    autoCancelHours: 48,
+};
+
 const Settings = () => {
-    const [settings, setSettings] = useState<Settings>({
-        codEnabled: true,
-        maxCodAmount: 50000,
-        insideDhakaCharge: 70,
-        outsideDhakaCharge: 120,
-        taxPercentage: 0,
-        autoCancel: false,
-        autoCancelHours: 48,
+    const queryClient = useQueryClient();
+    const [local, setLocal] = useState<ISettings>(DEFAULT);
+    const [hasChanges, setHasChanges] = useState(false);
+    const [successMsg, setSuccessMsg] = useState('');
+
+    const { data, isLoading } = useQuery({
+        queryKey: ['admin-settings'],
+        queryFn: async () => {
+            const res = await axios.get(`${API_URL}/settings`);
+            return res.data.data.settings as ISettings;
+        },
     });
 
-    const [hasChanges, setHasChanges] = useState(false);
+    useEffect(() => {
+        if (data) {
+            setLocal(data);
+            setHasChanges(false);
+        }
+    }, [data]);
 
-    const handleChange = (key: keyof Settings, value: boolean | number) => {
-        setSettings((prev) => ({ ...prev, [key]: value }));
+    const saveMutation = useMutation({
+        mutationFn: async (settings: ISettings) => {
+            const token = getAdminToken();
+            const res = await axios.put(`${API_URL}/settings`, settings, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            });
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
+            setHasChanges(false);
+            setSuccessMsg('Settings saved!');
+            setTimeout(() => setSuccessMsg(''), 3000);
+        },
+    });
+
+    const handleChange = (key: keyof ISettings, value: boolean | number) => {
+        setLocal(prev => ({ ...prev, [key]: value }));
         setHasChanges(true);
     };
 
-    const handleSave = () => {
-        console.log('Settings saved:', settings);
-        alert('Settings saved successfully!');
-        setHasChanges(false);
+    const handleReset = () => {
+        if (data) { setLocal(data); setHasChanges(false); }
     };
 
-    const handleReset = () => {
-        setSettings({
-            codEnabled: true,
-            maxCodAmount: 50000,
-            insideDhakaCharge: 70,
-            outsideDhakaCharge: 120,
-            taxPercentage: 0,
-            autoCancel: false,
-            autoCancelHours: 48,
-        });
-        setHasChanges(false);
-    };
+    const Toggle = ({ field }: { field: 'codEnabled' | 'autoCancel' }) => (
+        <button
+            onClick={() => handleChange(field, !local[field])}
+            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${local[field] ? 'bg-[#C85A3A]' : 'bg-gray-300'}`}
+        >
+            <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${local[field] ? 'translate-x-9' : 'translate-x-1'}`} />
+        </button>
+    );
+
+    if (isLoading) {
+        return (
+            <div className="bg-[#F7F7F7] min-h-screen flex items-center justify-center">
+                <FaSpinner className="animate-spin w-8 h-8 text-[#C85A3A]" />
+            </div>
+        );
+    }
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-[1000px] mx-auto">
-                {/* Header */}
+            <div className="max-w-250 mx-auto">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Settings</h1>
                     <p className="text-[#818B9C]">Configure your store settings</p>
                 </div>
 
-                {/* Settings Cards */}
-                <div className="space-y-6">
-                    {/* COD Settings */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">
-                            Cash on Delivery (COD)
-                        </h2>
+                {successMsg && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
+                        ✅ {successMsg}
+                    </div>
+                )}
 
+                <div className="space-y-6">
+                    {/* COD */}
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Cash on Delivery (COD)</h2>
                         <div className="space-y-6">
-                            {/* Enable/Disable COD */}
                             <div className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg">
                                 <div>
-                                    <h3 className="font-semibold text-[#0B0F0E] mb-1">
-                                        Enable COD
-                                    </h3>
-                                    <p className="text-sm text-[#818B9C]">
-                                        Allow customers to pay on delivery
-                                    </p>
+                                    <h3 className="font-semibold text-[#0B0F0E] mb-1">Enable COD</h3>
+                                    <p className="text-sm text-[#818B9C]">Allow customers to pay on delivery</p>
                                 </div>
-                                <button
-                                    onClick={() =>
-                                        handleChange('codEnabled', !settings.codEnabled)
-                                    }
-                                    className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${settings.codEnabled ? 'bg-[#C85A3A]' : 'bg-gray-300'
-                                        }`}
-                                >
-                                    <span
-                                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.codEnabled
-                                                ? 'translate-x-9'
-                                                : 'translate-x-1'
-                                            }`}
-                                    />
-                                </button>
+                                <Toggle field="codEnabled" />
                             </div>
-
-                            {/* Max COD Amount */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-base font-medium text-[#0B0F0E]">
-                                    Maximum COD Order Amount
-                                </label>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl font-semibold text-[#818B9C]">$</span>
-                                    <input
-                                        type="number"
-                                        value={settings.maxCodAmount}
-                                        onChange={(e) =>
-                                            handleChange('maxCodAmount', parseInt(e.target.value))
-                                        }
-                                        disabled={!settings.codEnabled}
-                                        className="flex-1 px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
-                                    />
-                                </div>
-                                <p className="text-sm text-[#818B9C]">
-                                    Orders above this amount will not allow COD
-                                </p>
+                                <label className="text-base font-medium text-[#0B0F0E]">Maximum COD Order Amount (৳)</label>
+                                <input
+                                    type="number"
+                                    value={local.maxCodAmount}
+                                    onChange={e => handleChange('maxCodAmount', parseInt(e.target.value))}
+                                    disabled={!local.codEnabled}
+                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
+                                />
                             </div>
                         </div>
                     </div>
 
                     {/* Delivery Charges */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">
-                            Delivery Charges
-                        </h2>
-
+                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Delivery Charges</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Inside Dhaka */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-base font-medium text-[#0B0F0E]">
-                                    Inside Dhaka
-                                </label>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl font-semibold text-[#818B9C]">$</span>
-                                    <input
-                                        type="number"
-                                        value={settings.insideDhakaCharge}
-                                        onChange={(e) =>
-                                            handleChange(
-                                                'insideDhakaCharge',
-                                                parseInt(e.target.value)
-                                            )
-                                        }
-                                        className="flex-1 px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                    />
-                                </div>
+                                <label className="text-base font-medium text-[#0B0F0E]">Inside Dhaka (৳)</label>
+                                <input
+                                    type="number"
+                                    value={local.insideDhakaCharge}
+                                    onChange={e => handleChange('insideDhakaCharge', parseInt(e.target.value))}
+                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                />
                             </div>
-
-                            {/* Outside Dhaka */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-base font-medium text-[#0B0F0E]">
-                                    Outside Dhaka
-                                </label>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl font-semibold text-[#818B9C]">$</span>
-                                    <input
-                                        type="number"
-                                        value={settings.outsideDhakaCharge}
-                                        onChange={(e) =>
-                                            handleChange(
-                                                'outsideDhakaCharge',
-                                                parseInt(e.target.value)
-                                            )
-                                        }
-                                        className="flex-1 px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                    />
-                                </div>
+                                <label className="text-base font-medium text-[#0B0F0E]">Outside Dhaka (৳)</label>
+                                <input
+                                    type="number"
+                                    value={local.outsideDhakaCharge}
+                                    onChange={e => handleChange('outsideDhakaCharge', parseInt(e.target.value))}
+                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                />
                             </div>
                         </div>
                     </div>
 
-                    {/* Tax Settings */}
+                    {/* Tax */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Tax Settings</h2>
-
                         <div className="flex flex-col gap-2">
-                            <label className="text-base font-medium text-[#0B0F0E]">
-                                Tax Percentage
-                            </label>
-                            <div className="flex items-center gap-3">
-                                <input
-                                    type="number"
-                                    value={settings.taxPercentage}
-                                    onChange={(e) =>
-                                        handleChange('taxPercentage', parseFloat(e.target.value))
-                                    }
-                                    step="0.1"
-                                    className="flex-1 px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                />
-                                <span className="text-2xl font-semibold text-[#818B9C]">%</span>
-                            </div>
-                            <p className="text-sm text-[#818B9C]">
-                                Set to 0 to disable tax on orders
-                            </p>
+                            <label className="text-base font-medium text-[#0B0F0E]">Tax Percentage (%)</label>
+                            <input
+                                type="number"
+                                step="0.1"
+                                value={local.taxPercentage}
+                                onChange={e => handleChange('taxPercentage', parseFloat(e.target.value))}
+                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                            />
+                            <p className="text-sm text-[#818B9C]">Set to 0 to disable tax</p>
                         </div>
                     </div>
 
-                    {/* Order Auto-Cancel */}
+                    {/* Auto-Cancel */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">
-                            Order Auto-Cancel
-                        </h2>
-
+                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Order Auto-Cancel</h2>
                         <div className="space-y-6">
-                            {/* Enable Auto-Cancel */}
                             <div className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg">
                                 <div>
-                                    <h3 className="font-semibold text-[#0B0F0E] mb-1">
-                                        Enable Auto-Cancel
-                                    </h3>
-                                    <p className="text-sm text-[#818B9C]">
-                                        Automatically cancel unconfirmed orders
-                                    </p>
+                                    <h3 className="font-semibold text-[#0B0F0E] mb-1">Enable Auto-Cancel</h3>
+                                    <p className="text-sm text-[#818B9C]">Automatically cancel unconfirmed orders</p>
                                 </div>
-                                <button
-                                    onClick={() =>
-                                        handleChange('autoCancel', !settings.autoCancel)
-                                    }
-                                    className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${settings.autoCancel ? 'bg-[#C85A3A]' : 'bg-gray-300'
-                                        }`}
-                                >
-                                    <span
-                                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${settings.autoCancel
-                                                ? 'translate-x-9'
-                                                : 'translate-x-1'
-                                            }`}
-                                    />
-                                </button>
+                                <Toggle field="autoCancel" />
                             </div>
-
-                            {/* Auto-Cancel Time */}
                             <div className="flex flex-col gap-2">
-                                <label className="text-base font-medium text-[#0B0F0E]">
-                                    Auto-Cancel After (Hours)
-                                </label>
+                                <label className="text-base font-medium text-[#0B0F0E]">Auto-Cancel After (Hours)</label>
                                 <input
                                     type="number"
-                                    value={settings.autoCancelHours}
-                                    onChange={(e) =>
-                                        handleChange('autoCancelHours', parseInt(e.target.value))
-                                    }
-                                    disabled={!settings.autoCancel}
-                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
+                                    value={local.autoCancelHours}
+                                    onChange={e => handleChange('autoCancelHours', parseInt(e.target.value))}
+                                    disabled={!local.autoCancel}
+                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
                                 />
-                                <p className="text-sm text-[#818B9C]">
-                                    Unconfirmed orders will be cancelled after this many hours
-                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Sticky save bar */}
                 {hasChanges && (
                     <div className="sticky bottom-6 mt-8 bg-white border border-[#E4E9EE] rounded-lg p-6 shadow-lg">
                         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
@@ -263,10 +214,11 @@ const Settings = () => {
                                     Reset
                                 </button>
                                 <button
-                                    onClick={handleSave}
-                                    className="flex items-center gap-2 px-6 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
+                                    onClick={() => saveMutation.mutate(local)}
+                                    disabled={saveMutation.isPending}
+                                    className="flex items-center gap-2 px-6 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50"
                                 >
-                                    <FaSave />
+                                    {saveMutation.isPending ? <FaSpinner className="animate-spin" /> : <FaSave />}
                                     Save Changes
                                 </button>
                             </div>

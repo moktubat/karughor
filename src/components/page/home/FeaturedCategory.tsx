@@ -1,62 +1,74 @@
 'use client';
 
 import Link from 'next/link';
-import { FaHome, FaTshirt, FaCouch, FaHeart, FaPuzzlePiece, FaBook } from 'react-icons/fa';
+import { useQuery } from '@tanstack/react-query';
+import { categoryService } from '@/lib/categoryService';
+import { getCategoryIcon } from '@/lib/categoryIcons';
 
-const Icons = {
-  FaHome,
-  FaTshirt,
-  FaCouch,
-  FaHeart,
-  FaPuzzlePiece,
-  FaBook,
-};
-
-const categories = [
-  { name: 'Electronics', products: '8,9k products', icon: 'FaHome', slug: 'electronics' },
-  { name: 'Fashion', products: '5,2k products', icon: 'FaTshirt', slug: 'fashion' },
-  { name: 'Home', products: '3,1k products', icon: 'FaCouch', slug: 'home' },
-  { name: 'Beauty', products: '2,5k products', icon: 'FaHeart', slug: 'beauty' },
-  { name: 'Toys', products: '1,9k products', icon: 'FaPuzzlePiece', slug: 'toys' },
-  { name: 'Books', products: '7,8k products', icon: 'FaBook', slug: 'books' },
-];
+// ✅ Static fallback — shown IMMEDIATELY on every render
+// Silently replaced by real API data when it arrives
+const STATIC_CATEGORIES = [
+  { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', subCategories: [] },
+  { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', subCategories: [] },
+  { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', subCategories: [] },
+  { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', subCategories: [] },
+  { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', subCategories: [] },
+  { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils', subCategories: [] },
+  { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper', subCategories: [] },
+  { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt', subCategories: [] },
+  { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed', subCategories: [] },
+  { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle', subCategories: [] },
+] as const;
 
 const FeaturedCategory = () => {
+  const { data: apiCategories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: categoryService.getAll,
+    staleTime: 5 * 60 * 1000,
+    // No suspense, no blocking — fires in background
+  });
+
+  // ✅ Show static categories immediately.
+  // Once the API responds with real data, swap to that.
+  const displayCategories =
+    apiCategories && apiCategories.length > 0
+      ? apiCategories
+      : STATIC_CATEGORIES;
+
   return (
     <section className="bg-white w-full py-12">
-      <div className="max-w-7xl mx-auto px-6 sm:px-4">
-        {/* Section Header */}
+      <div className="max-w-300 mx-auto px-4 md:px-0">
         <div className="mb-8 text-center">
-          <h2 className="text-[#0B0F0E] font-grotesk font-semibold text-4xl sm:text-2xl">
+          <h2 className="text-[#0B0F0E] font-semibold text-3xl">
             Featured Category
           </h2>
+          <p className="text-[#818B9C] mt-2 text-sm">
+            Browse our handcrafted collections
+          </p>
         </div>
 
-        {/* Categories Row */}
-        <div className="flex flex-wrap justify-center gap-6 sm:gap-4">
-          {categories.map((cat, i) => {
-            const IconComponent = Icons[cat.icon as keyof typeof Icons];
-
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {displayCategories.map((cat) => {
+            const IconComponent = getCategoryIcon(cat.icon);
             return (
               <Link
-                key={i}
-                href={`/category/${cat.slug}`}
-                className="w-35 sm:w-25 p-6 sm:p-4 border-2 border-[#E4E9EE] rounded-xl text-center transition-all hover:border-[#C85A3A] hover:-translate-y-1"
+                key={cat._id}
+                href={`/products?category=${cat.slug}`}
+                className="group flex flex-col items-center justify-start p-4 min-h-[120px] border-2 border-[#E4E9EE] rounded-xl text-center transition-all duration-200 hover:border-[#C85A3A] hover:-translate-y-1 hover:shadow-md"
               >
-                {/* Icon */}
-                <div className="flex justify-center">
-                  {IconComponent && <IconComponent className="w-10 h-10 sm:w-8 sm:h-8" />}
+                <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#FFF5F2] group-hover:bg-[#C85A3A] transition-colors duration-200 mb-3 flex-shrink-0">
+                  <IconComponent className="w-6 h-6 text-[#C85A3A] group-hover:text-white transition-colors duration-200" />
                 </div>
 
-                {/* Category Name */}
-                <span className="block mt-2 text-[#0B0F0E] font-grotesk font-semibold text-lg leading-[140%] sm:text-base">
+                <span className="text-[#0B0F0E] font-semibold text-sm leading-snug line-clamp-2 text-center group-hover:text-[#C85A3A] transition-colors">
                   {cat.name}
                 </span>
 
-                {/* Product Count */}
-                <span className="mt-1 text-[#818B9C] text-sm leading-[160%] font-grotesk hidden sm:block md:block">
-                  {cat.products}
-                </span>
+                {'subCategories' in cat && Array.isArray(cat.subCategories) && cat.subCategories.length > 0 && (
+                  <span className="mt-1 text-[#818B9C] text-xs">
+                    {cat.subCategories.length} types
+                  </span>
+                )}
               </Link>
             );
           })}

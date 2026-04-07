@@ -2,10 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaRegHeart, FaRegStar } from 'react-icons/fa';
 import { FaCartPlus, FaHeart } from 'react-icons/fa6';
 import Image from 'next/image';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
+import { useCartStore } from '@/store/cartStore';
 
 interface ProductCardProps {
     id: number;
@@ -25,88 +27,106 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     image,
     originalPrice,
     salePrice,
-    discount = '20% Off',
+    discount,              // ✅ NO default — only show if explicitly passed
     rating = '4.8',
     isLiked = false,
     onToggleLike,
 }) => {
+    const router = useRouter();
+
     const handleLikeClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         onToggleLike?.(id, e);
     };
 
+    const addItem = useCartStore((s) => s.addItem);
+
+    const handleCartClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        addItem({
+            id: String(id),
+            name,
+            image,
+            price: Number(salePrice.replace(/[^\d.]/g, '')),
+            originalPrice: originalPrice ? Number(originalPrice.replace(/[^\d.]/g, '')) : undefined,
+            category: '',
+        });
+    };
+
+    const handleViewClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        router.push(`/products/${id}`);
+    };
+
     return (
-        <div className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col transition-transform hover:-translate-y-1">
+        <Link
+            href={`/products/${id}`}
+            className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col h-full transition-transform hover:-translate-y-1"
+        >
+            {/* Image Box — fixed square, object-cover so all images are same size */}
+            <div className="relative bg-[#F6F6F6] w-full aspect-square group overflow-hidden">
 
-            {/* Image Box */}
-            <div className="relative bg-[#F6F6F6] p-12.5 rounded-t-md group overflow-hidden">
-
-                {/* Discount Badge */}
+                {/* ✅ Only show discount badge if discount is actually passed */}
                 {discount && (
-                    <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-lg z-10">
+                    <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
                         {discount}
                     </div>
                 )}
 
-                {/* Product Image */}
                 <Image
                     src={image}
                     alt={name}
-                    width={500}
-                    height={500}
-                    className="w-full h-auto block"
+                    fill
+                    className="object-cover"  // ✅ fills the square uniformly
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 />
 
-                {/* Hover Actions */}
-                <div className="absolute inset-0 bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100 rounded-lg pointer-events-none">
-
-                    {/* Top-right: Like button */}
+                {/* Hover Overlay */}
+                <div className="absolute inset-0 bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100 rounded-lg cursor-pointer">
                     <div className="flex justify-end p-3">
                         <button
                             onClick={handleLikeClick}
-                            aria-label={isLiked ? 'Remove from favorites' : 'Add to favorites'}
-                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 ${isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'}`}
+                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer ${isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'}`}
                         >
                             {isLiked ? <FaHeart /> : <FaRegHeart />}
                         </button>
                     </div>
-
-                    {/* Centered Cart & View buttons */}
-                    <div className="absolute inset-0 flex items-center justify-center gap-4">
-                        <Link href={`/cart/${id}`}>
-                            <button className="w-12 h-12 rounded-full bg-[#0B0F0E] text-white flex items-center justify-center transition-transform hover:scale-110">
-                                <FaCartPlus className="w-4.5 h-4.5" />
-                            </button>
-                        </Link>
-                        <Link href={`/products/${id}`}>
-                            <button className="w-12 h-12 rounded-full bg-[#0B0F0E] text-white flex items-center justify-center transition-transform hover:scale-110">
-                                <MdOutlineRemoveRedEye className="w-4.5 h-4.5" />
-                            </button>
-                        </Link>
+                    <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
+                        <button
+                            onClick={handleCartClick}
+                            className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]"
+                        >
+                            <FaCartPlus />
+                        </button>
+                        <button
+                            onClick={handleViewClick}
+                            className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]"
+                        >
+                            <MdOutlineRemoveRedEye />
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Product Info */}
-            <div className="p-4 flex flex-col grow justify-between">
-                <h3 className="text-lg font-semibold text-[#0B0F0E] mb-2 leading-snug">{name}</h3>
-                <div className="flex justify-between items-center mt-2">
-                    <div className="flex items-center gap-3">
+            {/* Info Box — flex-1 so all cards stretch to same height */}
+            <div className="flex flex-col flex-1 p-4 gap-2">
+                <p className="text-base font-semibold text-[#0B0F0E] line-clamp-2 flex-1">{name}</p>
+                <div className="flex items-center justify-between mt-auto">
+                    <div className="flex items-center gap-2">
                         {originalPrice && (
-                            <span className="text-sm text-[#919EAB] line-through">
-                                {originalPrice}
-                            </span>
+                            <span className="text-sm text-[#818B9C] line-through">{originalPrice}</span>
                         )}
-                        <span className="text-base font-semibold text-[#C85A3A]">
-                            {salePrice}
-                        </span>
+                        <span className="text-base font-bold text-[#C85A3A]">{salePrice}</span>
                     </div>
-                    <div className="flex items-center gap-1 text-base text-[#FFA500]">
-                        <FaRegStar className="w-4 h-4" /> {rating}
+                    <div className="flex items-center gap-1 text-amber-400">
+                        <FaRegStar className="w-4 h-4" />
+                        <span className="text-sm text-[#818B9C]">{rating}</span>
                     </div>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 };

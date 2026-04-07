@@ -1,439 +1,533 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
+import { useParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import {
-    FaHeart,
-    FaRegHeart,
-    FaShoppingCart,
-    FaStar,
-    FaChevronLeft,
-    FaChevronRight,
-    FaCheck
+    FaHeart, FaRegHeart, FaShoppingCart, FaStar,
+    FaChevronLeft, FaChevronRight, FaCheck,
 } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';
-import { Product } from '@/types/product';
 import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '@/hooks/useLikedProducts';
+import { useCartStore } from '@/store/cartStore';
+import categoryDefaults from '@/lib/categoryDefaults';
+import Link from 'next/link';
 
-interface ProductVariant {
-    type: string;
-    color: string;
-}
 
-interface Breadcrumb {
-    label: string;
-    href?: string;
-    active?: boolean;
-}
-
-// Constants
-const PRODUCT_IMAGES = [
-    'https://images.unsplash.com/photo-1527814050087-3793815479db?w=600&h=600&fit=crop',
-    'https://images.unsplash.com/photo-1527814050087-3793815479db?w=600&h=600&fit=crop',
-    'https://images.unsplash.com/photo-1527814050087-3793815479db?w=600&h=600&fit=crop',
-    'https://images.unsplash.com/photo-1527814050087-3793815479db?w=600&h=600&fit=crop',
-] as const;
-
-const RELATED_PRODUCTS: Product[] = [
-    {
-        id: 1,
-        name: 'Spy x Family Tshirt',
-        brand: 'North Purwokerto',
-        image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop',
-        salePrice: '$26',
-        originalPrice: '$32',
-        discount: '-20%',
-        rating: '4.8',
-        sold: 1238,
-    },
-    {
-        id: 2,
-        name: 'Green Man Jacket',
-        brand: 'North Purwokerto',
-        image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop',
-        salePrice: '$49',
-        originalPrice: '$65',
-        discount: '-25%',
-        rating: '4.8',
-        sold: 1238,
-    },
-    {
-        id: 3,
-        name: 'iPhone 14 Pro Max',
-        brand: 'North Purwokerto',
-        image: 'https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=400&h=400&fit=crop',
-        salePrice: '$1200',
-        rating: '4.8',
-        sold: 1238,
-    },
-    {
-        id: 4,
-        name: 'Oversized Tshirt',
-        brand: 'North Purwokerto',
-        image: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop',
-        salePrice: '$48',
-        originalPrice: '$60',
-        discount: '-20%',
-        rating: '4.8',
-        sold: 1238,
-    },
-];
-
-const BREADCRUMB_ITEMS: Breadcrumb[] = [
-    { label: 'Home', href: '/' },
-    { label: 'Electronic', href: '/electronic' },
-    { label: 'Gaming Gear', href: '/electronic/gaming-gear' },
-    { label: 'G502 X Lightspeed Wireless Gaming Mouse', active: true }
-];
-
-const PRODUCT_DETAILS = {
-    name: 'G502 X Lightspeed Wireless Gaming Mouse',
-    price: '$139.99',
-    rating: 4.8,
-    sold: 1238,
-    description: 'G502 X LIGHTSPEED is the latest addition to legendary G502 lineage. Featuring our first-ever LIGHTFORCE hybrid optical-mechanical switches and updated LIGHTSPEED wireless protocol with 68% faster response rate.',
-    specifications: [
-        { label: 'Brand', value: 'Logitech' },
-        { label: 'Type', value: 'Wireless' },
-        { label: 'Resolution', value: '100 – 25600 DPI' },
-        { label: 'Max Speed', value: '40G' },
-        { label: 'Max Acceleration', value: '300 IPS' }
-    ],
-    inTheBox: [
-        'Wireless Gaming Mouse',
-        'USB-C Cable',
-        'Receiver',
-        'Documentation'
-    ],
-    systemRequirements: [
-        'USB Port',
-        'Windows 10 or later',
-        'macOS 10.14+',
-        'Internet Access'
-    ]
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 const ProductDetails: React.FC = () => {
+    const params = useParams();
+    const router = useRouter();
+    const id = params?.id as string;
+
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [addedToCart, setAddedToCart] = useState(false);
     const { likedProducts, toggleLike } = useLikedProducts();
-    const [variant, setVariant] = useState<ProductVariant>({
-        type: 'Wireless',
-        color: 'Black'
+    const addItem = useCartStore((s) => s.addItem);
+
+    // ── Fetch current product ─────────────────────────────────────────────────
+    const { data: productData, isLoading, error } = useQuery({
+        queryKey: ['product', id],
+        queryFn: async () => {
+            const res = await axios.get(`${API_URL}/products/${id}`);
+            return res.data.data.product;
+        },
+        enabled: !!id,
     });
 
-    // Memoized handlers
+    // ── Fetch related products (same category) ────────────────────────────────
+    const { data: relatedData } = useQuery({
+        queryKey: ['related-products', productData?.category],
+        queryFn: async () => {
+            const res = await axios.get(
+                `${API_URL}/products?category=${productData.category}&limit=4`
+            );
+            // Exclude current product
+            return res.data.data.products.filter((p: any) => p._id !== id);
+        },
+        enabled: !!productData?.category,
+    });
+
+    const product = productData;
+
+    const categorySlug = product?.category
+        ? product.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : null;
+    const fallback = categorySlug ? categoryDefaults[categorySlug] ?? null : null;
+
+
+    const specifications =
+        product?.specifications && Object.keys(product.specifications).length > 0
+            ? product.specifications
+            : fallback?.specifications ?? {};
+
+    const inTheBox =
+        product?.inTheBox && product.inTheBox.length > 0
+            ? product.inTheBox
+            : fallback?.inTheBox ?? [];
+
+    const careInstructions =
+        product?.careInstructions && product.careInstructions.length > 0
+            ? product.careInstructions
+            : fallback?.careInstructions ?? [];
+
+    const highlights =
+        product?.highlights && product.highlights.length > 0
+            ? product.highlights
+            : fallback?.highlights ?? [];
+
+    const images: string[] = useMemo(() => {
+        if (product?.images?.length > 0) return product.images;
+
+        return [
+            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=600&fit=crop',
+        ];
+    }, [product?.images]);
+
+    const relatedProducts = useMemo(() => relatedData ?? [], [relatedData]);
+
+    // ── Image navigation ──────────────────────────────────────────────────────
     const nextImage = useCallback(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % PRODUCT_IMAGES.length);
-    }, []);
+        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, [images.length]);
 
     const prevImage = useCallback(() => {
-        setCurrentImageIndex((prev) => (prev - 1 + PRODUCT_IMAGES.length) % PRODUCT_IMAGES.length);
-    }, []);
+        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    }, [images.length]);
 
-    const handleThumbnailClick = useCallback((index: number) => {
-        setCurrentImageIndex(index);
-    }, []);
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowLeft') prevImage();
+        else if (e.key === 'ArrowRight') nextImage();
+    }, [nextImage, prevImage]);
 
-    const handleTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        setVariant(prev => ({ ...prev, type: e.target.value }));
-    }, []);
-
-    const handleColorChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        setVariant(prev => ({ ...prev, color: e.target.value }));
-    }, []);
+    // ── Cart actions ──────────────────────────────────────────────────────────
+    const handleAddToCart = useCallback(() => {
+        if (!product) return;
+        addItem({
+            id: product._id,
+            name: product.name,
+            image: images[0],
+            price: product.price,
+            originalPrice: product.originalPrice,
+            category: product.category,
+        });
+        setAddedToCart(true);
+        setTimeout(() => setAddedToCart(false), 2000);
+    }, [product, images, addItem]);
 
     const handleBuyNow = useCallback(() => {
-        console.log('Buy now clicked', { variant });
-    }, [variant]);
+        if (!product) return;
+        addItem({
+            id: product._id,
+            name: product.name,
+            image: images[0],
+            price: product.price,
+            originalPrice: product.originalPrice,
+            category: product.category,
+        });
+        router.push('/checkout');
+    }, [product, images, addItem, router]);
 
-    const handleAddToCart = useCallback(() => {
-        console.log('Add to cart clicked', { variant });
-    }, [variant]);
+    // ── Loading state ─────────────────────────────────────────────────────────
+    if (isLoading) {
+        return (
+            <div className="bg-white w-full py-12">
+                <div className="max-w-300 mx-auto px-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-8">
+                        <div className="aspect-square bg-gray-100 rounded-lg animate-pulse" />
+                        <div className="flex flex-col gap-4">
+                            <div className="h-8 bg-gray-100 rounded animate-pulse w-3/4" />
+                            <div className="h-5 bg-gray-100 rounded animate-pulse w-1/4" />
+                            <div className="h-10 bg-gray-100 rounded animate-pulse w-1/3" />
+                            <div className="h-24 bg-gray-100 rounded animate-pulse" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    // Keyboard navigation for image gallery
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (e.key === 'ArrowLeft') {
-            prevImage();
-        } else if (e.key === 'ArrowRight') {
-            nextImage();
-        }
-    }, [nextImage, prevImage]);
+    if (error || !product) {
+        return (
+            <div className="bg-white w-full py-32 text-center">
+                <p className="text-4xl mb-4">😕</p>
+                <p className="text-xl font-semibold text-[#0B0F0E]">Product not found</p>
+                <button
+                    onClick={() => router.push('/products')}
+                    className="mt-6 px-6 py-2.5 bg-[#C85A3A] text-white rounded-lg text-sm font-medium hover:bg-[#A84830] transition-colors"
+                >
+                    Browse Products
+                </button>
+            </div>
+        );
+    }
+
+    const salePrice = product.price;
+    const originalPrice = product.originalPrice;
+    const discount = originalPrice && salePrice < originalPrice
+        ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
+        : null;
+
+    const ProductDetailsTabs: React.FC<{
+        specifications: Record<string, string>;
+        inTheBox: string[];
+        careInstructions: string[];
+        highlights: string[];
+    }> = ({ specifications, inTheBox, careInstructions, highlights }) => {
+        const tabs = [
+            { id: 'specs', label: 'Specifications', show: Object.keys(specifications).length > 0 },
+            { id: 'inbox', label: 'In The Box', show: inTheBox.length > 0 },
+            { id: 'care', label: 'Care Guide', show: careInstructions.length > 0 },
+            { id: 'highlights', label: 'Highlights', show: highlights.length > 0 },
+        ].filter(t => t.show);
+
+        const [activeTab, setActiveTab] = useState(tabs[0]?.id || 'specs');
+
+        return (
+            <section className="mt-16 md:mt-20">
+                <h2 className="text-2xl md:text-3xl font-semibold text-[#0B0F0E] mb-6">
+                    Product Details
+                </h2>
+
+                {/* Tab Bar */}
+                <div className="flex gap-1 border-b border-[#E4E9EE] mb-0">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-5 py-3 text-sm font-semibold rounded-t-lg transition-all -mb-px border border-b-0 ${activeTab === tab.id
+                                ? 'bg-white border-[#E4E9EE] text-[#C85A3A]'
+                                : 'bg-transparent border-transparent text-[#818B9C] hover:text-[#0B0F0E]'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab Content */}
+                <div className="border border-[#E4E9EE] rounded-b-xl rounded-tr-xl bg-white p-6 md:p-8">
+
+                    {/* Specifications */}
+                    {activeTab === 'specs' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
+                            {Object.entries(specifications).map(([key, val], i) => (
+                                <div
+                                    key={key}
+                                    className={`flex items-start gap-4 py-4 ${i < Object.keys(specifications).length - (Object.keys(specifications).length % 2 === 0 ? 2 : 1)
+                                        ? 'border-b border-[#F0F0F0]'
+                                        : ''
+                                        }`}
+                                >
+                                    <span className="text-sm text-[#818B9C] w-36 flex-shrink-0 pt-0.5">
+                                        {key.replace(/_/g, ' ')}
+                                    </span>
+                                    <span className="text-sm font-semibold text-[#0B0F0E]">
+                                        {val}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* In The Box */}
+                    {activeTab === 'inbox' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {inTheBox.map((item, i) => (
+                                <div key={i} className="flex items-center gap-3 bg-[#F7F7F7] rounded-lg px-4 py-3">
+                                    <div className="w-6 h-6 rounded-full bg-[#C85A3A]/10 flex items-center justify-center flex-shrink-0">
+                                        <FaCheck className="text-[#C85A3A] w-3 h-3" />
+                                    </div>
+                                    <span className="text-sm font-medium text-[#0B0F0E]">{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Care Instructions */}
+                    {activeTab === 'care' && (
+                        <div className="flex flex-col gap-3">
+                            {careInstructions.map((item, i) => (
+                                <div key={i} className="flex items-start gap-4 py-3 border-b border-[#F0F0F0] last:border-0">
+                                    <div className="w-7 h-7 rounded-full bg-[#C85A3A]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <span className="text-xs font-bold text-[#C85A3A]">{i + 1}</span>
+                                    </div>
+                                    <span className="text-sm text-[#0B0F0E] leading-relaxed">{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Highlights */}
+                    {activeTab === 'highlights' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {highlights.map((item, i) => (
+                                <div key={i} className="flex items-start gap-3 p-4 rounded-xl border border-[#E4E9EE] hover:border-[#C85A3A]/30 hover:bg-[#C85A3A]/5 transition-all">
+                                    <div className="w-2 h-2 rounded-full bg-[#C85A3A] flex-shrink-0 mt-1.5" />
+                                    <span className="text-sm text-[#0B0F0E] leading-relaxed">{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+        );
+    };
+
 
     return (
         <div className="bg-white w-full py-12 md:pt-10 md:pb-20">
             <div className="max-w-300 mx-auto px-4 md:px-0">
-                {/* Breadcrumbs */}
-                <nav
-                    className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap"
-                    aria-label="Breadcrumb navigation"
-                >
-                    {BREADCRUMB_ITEMS.map((crumb, index) => (
-                        <React.Fragment key={index}>
-                            {index > 0 && (
-                                <MdKeyboardArrowRight className="text-[#818B9C]" aria-hidden="true" />
-                            )}
-                            {crumb.active ? (
-                                <span
-                                    className="text-[#0B0F0E] font-semibold cursor-default"
-                                    aria-current="page"
-                                >
-                                    {crumb.label}
-                                </span>
-                            ) : (
-                                <a
-                                    href={crumb.href}
-                                    className="text-[#C85A3A] hover:underline transition-all duration-300 focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 focus-visible:rounded-sm"
-                                >
-                                    {crumb.label}
-                                </a>
-                            )}
-                        </React.Fragment>
-                    ))}
+
+                {/* Breadcrumb */}
+                <nav className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap">
+                    <Link href="/" className="text-[#C85A3A] hover:underline">Home</Link>
+                    <MdKeyboardArrowRight />
+                    <Link href="/products" className="text-[#C85A3A] hover:underline">Products</Link>
+                    {product.category && (
+                        <>
+                            <MdKeyboardArrowRight />
+                            <Link
+                                href={`/products?category=${product.category}`}
+                                className="text-[#C85A3A] hover:underline capitalize"
+                            >
+                                {product.category.replace(/-/g, ' ')}
+                            </Link>
+                        </>
+                    )}
+                    <MdKeyboardArrowRight />
+                    <span className="text-[#0B0F0E] font-semibold line-clamp-1">{product.name}</span>
                 </nav>
 
                 {/* Product Section */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-8">
+
                     {/* Image Gallery */}
-                    <div className="flex flex-col">
-                        <div
-                            className="flex flex-col gap-4"
-                            role="region"
-                            aria-label="Product images"
-                            onKeyDown={handleKeyDown}
-                            tabIndex={0}
-                        >
-                            {/* Main Image */}
-                            <div className="relative w-full aspect-square bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
+                    <div
+                        className="flex flex-col gap-4"
+                        onKeyDown={handleKeyDown}
+                        tabIndex={0}
+                        role="region"
+                        aria-label="Product images"
+                    >
+                        {/* Main Image */}
+                        <div className="relative w-full aspect-square bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
+                            {images.length > 1 && (
                                 <button
                                     onClick={prevImage}
                                     disabled={currentImageIndex === 0}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 backdrop-blur-sm border-0 flex items-center justify-center cursor-pointer text-[#0B0F0E] transition-all duration-300 z-10 hover:bg-white hover:text-[#C85A3A] hover:shadow-md focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center cursor-pointer z-10 hover:text-[#C85A3A] hover:shadow-md transition-all disabled:opacity-30"
                                     aria-label="Previous image"
                                 >
-                                    <FaChevronLeft className="w-5 h-5" />
+                                    <FaChevronLeft />
                                 </button>
-                                <img
-                                    src={PRODUCT_IMAGES[currentImageIndex]}
-                                    alt={`${PRODUCT_DETAILS.name} - Image ${currentImageIndex + 1} of ${PRODUCT_IMAGES.length}`}
-                                    className="max-w-[80%] max-h-[80%] object-contain select-none"
-                                    loading="eager"
-                                />
+                            )}
+
+                            <Image
+                                src={images[currentImageIndex]}
+                                alt={product.name}
+                                fill
+                                className="object-contain select-none"
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                                priority
+                            />
+
+                            {/* Discount badge */}
+                            {discount && (
+                                <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold">
+                                    {discount}% Off
+                                </div>
+                            )}
+
+                            {/* Stock badge */}
+                            {product.stock === 0 && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg">
+                                    <span className="bg-white text-[#0B0F0E] font-semibold px-4 py-2 rounded-lg">
+                                        Out of Stock
+                                    </span>
+                                </div>
+                            )}
+
+                            {images.length > 1 && (
                                 <button
                                     onClick={nextImage}
-                                    disabled={currentImageIndex === PRODUCT_IMAGES.length - 1}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 backdrop-blur-sm border-0 flex items-center justify-center cursor-pointer text-[#0B0F0E] transition-all duration-300 z-10 hover:bg-white hover:text-[#C85A3A] hover:shadow-md focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={currentImageIndex === images.length - 1}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center cursor-pointer z-10 hover:text-[#C85A3A] hover:shadow-md transition-all disabled:opacity-30"
                                     aria-label="Next image"
                                 >
-                                    <FaChevronRight className="w-5 h-5" />
+                                    <FaChevronRight />
                                 </button>
-                            </div>
+                            )}
+                        </div>
 
-                            {/* Thumbnails */}
-                            <div className="grid grid-cols-4 gap-2 md:gap-3" role="list" aria-label="Product thumbnails">
-                                {PRODUCT_IMAGES.map((img, index) => (
+                        {/* Thumbnails */}
+                        {images.length > 1 && (
+                            <div className="flex gap-2 md:gap-3 w-full overflow-hidden">
+                                {images.map((img, index) => (
                                     <div
                                         key={index}
-                                        onClick={() => handleThumbnailClick(index)}
-                                        className={`aspect-square bg-[#F6F6F6] rounded-lg border-2 cursor-pointer overflow-hidden transition-all duration-300 relative hover:border-[#C85A3A] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:scale-95 ${index === currentImageIndex ? 'border-[#C85A3A]' : 'border-transparent'
+                                        onClick={() => setCurrentImageIndex(index)}
+                                        className={`relative flex-1 min-w-0 aspect-square bg-[#F6F6F6] rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${index === currentImageIndex
+                                            ? 'border-[#C85A3A]'
+                                            : 'border-transparent hover:border-[#C85A3A]'
                                             }`}
-                                        role="listitem"
-                                        aria-label={`View image ${index + 1}`}
-                                        aria-current={index === currentImageIndex ? 'true' : undefined}
-                                        tabIndex={0}
                                     >
                                         <Image
                                             src={img}
-                                            alt={`${PRODUCT_DETAILS.name} thumbnail ${index + 1}`}
-                                            width={80}
-                                            height={80}
-                                            className="w-full h-full object-cover select-none"
-                                            loading={index < 4 ? 'eager' : 'lazy'}
+                                            alt={`${product.name} ${index + 1}`}
+                                            fill
+                                            className="object-cover"
                                         />
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     {/* Product Info */}
                     <div className="flex flex-col gap-4">
-                        <h1 className="text-3xl md:text-4xl font-semibold leading-tight tracking-tight text-[#0B0F0E] m-0">
-                            {PRODUCT_DETAILS.name}
+                        <h1 className="text-3xl md:text-4xl font-semibold leading-tight text-[#0B0F0E]">
+                            {product.name}
                         </h1>
 
+                        {/* Rating row */}
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center text-[#FFA500]" aria-hidden="true">
-                                <FaStar className="w-5 h-5" />
-                            </div>
-                            <span className="text-lg font-semibold text-[#0B0F0E]" aria-label={`Rating: ${PRODUCT_DETAILS.rating} out of 5`}>
-                                {PRODUCT_DETAILS.rating}
-                            </span>
-                            <span className="text-lg text-[#818B9C]" aria-label={`${PRODUCT_DETAILS.sold} units sold`}>
-                                {PRODUCT_DETAILS.sold} Sold
+                            <FaStar className="text-[#FFA500] w-5 h-5" />
+                            <span className="text-lg font-semibold text-[#0B0F0E]">4.8</span>
+                            <span className="text-[#818B9C]">·</span>
+                            <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${product.stock > 0
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                                }`}>
+                                {product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock'}
                             </span>
                         </div>
 
-                        <div className="text-3xl md:text-4xl font-semibold leading-normal tracking-tight text-[#C85A3A]" aria-label={`Price: ${PRODUCT_DETAILS.price}`}>
-                            {PRODUCT_DETAILS.price}
+                        {/* Price */}
+                        <div className="flex items-center gap-4">
+                            <span className="text-3xl md:text-4xl font-semibold text-[#C85A3A]">
+                                ৳{salePrice}
+                            </span>
+                            {originalPrice && (
+                                <span className="text-xl text-[#818B9C] line-through">
+                                    ৳{originalPrice}
+                                </span>
+                            )}
+                            {discount && (
+                                <span className="bg-red-100 text-red-600 text-sm font-semibold px-2 py-1 rounded">
+                                    {discount}% OFF
+                                </span>
+                            )}
                         </div>
 
-                        <p className="text-base text-[#818B9C] leading-relaxed m-0">
-                            {PRODUCT_DETAILS.description}
+                        {/* Description */}
+                        <p className="text-base text-[#818B9C] leading-relaxed">
+                            {product.description}
                         </p>
 
-                        {/* Variants */}
-                        <div className="flex flex-col gap-3 mt-2">
-                            <h3 className="text-lg font-semibold leading-normal text-[#0B0F0E] m-0">
-                                Product Variant:
-                            </h3>
-                            <div className="grid grid-cols-2 gap-3">
-                                <label htmlFor="type-select" className="text-base font-medium text-[#0B0F0E]">
-                                    Type
-                                </label>
-                                <label htmlFor="color-select" className="text-base font-medium text-[#0B0F0E]">
-                                    Color
-                                </label>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <select
-                                    id="type-select"
-                                    value={variant.type}
-                                    onChange={handleTypeChange}
-                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base font-medium text-[#0B0F0E] bg-white cursor-pointer transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMS41TDYgNi41TDExIDEuNSIgc3Ryb2tlPSIjMzc0MTUxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==')] bg-no-repeat bg-[right_12px_center] pr-10 focus:outline-none focus:border-[#C85A3A] focus:shadow-[0_0_0_3px_rgba(200,90,58,0.1)] hover:border-[#C85A3A] disabled:opacity-60 disabled:cursor-not-allowed"
-                                    aria-label="Select product type"
-                                >
-                                    <option value="Wireless">Wireless</option>
-                                    <option value="Wired">Wired</option>
-                                </select>
-                                <select
-                                    id="color-select"
-                                    value={variant.color}
-                                    onChange={handleColorChange}
-                                    className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base font-medium text-[#0B0F0E] bg-white cursor-pointer transition-all duration-300 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMS41TDYgNi41TDExIDEuNSIgc3Ryb2tlPSIjMzc0MTUxIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==')] bg-no-repeat bg-[right_12px_center] pr-10 focus:outline-none focus:border-[#C85A3A] focus:shadow-[0_0_0_3px_rgba(200,90,58,0.1)] hover:border-[#C85A3A] disabled:opacity-60 disabled:cursor-not-allowed"
-                                    aria-label="Select product color"
-                                >
-                                    <option value="Black">Black</option>
-                                    <option value="White">White</option>
-                                    <option value="Red">Red</option>
-                                </select>
-                            </div>
-                        </div>
+                        {/* Brand */}
+                        {product.brand && (
+                            <p className="text-sm text-[#818B9C]">
+                                Brand: <span className="font-semibold text-[#0B0F0E]">{product.brand}</span>
+                            </p>
+                        )}
 
                         {/* Action Buttons */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                             <button
                                 onClick={handleBuyNow}
-                                className="px-8 py-4 bg-[#C85A3A] text-white border-0 rounded-lg text-lg font-semibold leading-normal tracking-tight cursor-pointer transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                                disabled={product.stock === 0}
+                                className="px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Buy Now
                             </button>
                             <button
                                 onClick={handleAddToCart}
-                                className="px-8 py-4 bg-white text-[#C85A3A] border border-[#C85A3A] rounded-lg text-lg font-semibold leading-normal tracking-tight cursor-pointer flex items-center justify-center gap-2 transition-all duration-300 hover:bg-[#C85A3A] hover:text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                                disabled={product.stock === 0}
+                                className={`px-8 py-4 rounded-lg text-lg font-semibold flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${addedToCart
+                                    ? 'bg-green-500 text-white border border-green-500'
+                                    : 'bg-white text-[#C85A3A] border border-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
+                                    }`}
                             >
-                                <FaShoppingCart className="w-5 h-5" aria-hidden="true" />
-                                Add to Cart
+                                {addedToCart ? (
+                                    <>
+                                        <FaCheck /> Added!
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaShoppingCart /> Add to Cart
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
                 </section>
 
-                {/* Product Details Tabs */}
-                <section className="mt-16 md:mt-20">
-                    <div className="py-8">
-                        <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
-                            {PRODUCT_DETAILS.name}
-                        </h2>
-                        <p className="text-base text-[#818B9C] leading-relaxed m-0 mb-6">
-                            {PRODUCT_DETAILS.description}
-                        </p>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 justify-between items-start w-full">
-                            {/* Specifications */}
-                            <div>
-                                <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
-                                    Specifications
-                                </h2>
-                                <table className="w-full border-collapse mt-4">
-                                    <tbody>
-                                        {PRODUCT_DETAILS.specifications.map((spec, index) => (
-                                            <tr key={index} className="border-b border-[#E4E9EE] last:border-b-0">
-                                                <td className="py-3 md:py-4 text-sm md:text-base text-[#818B9C] w-32 md:w-48">
-                                                    {spec.label}
-                                                </td>
-                                                <td className="py-3 md:py-4 text-sm md:text-base font-semibold text-[#0B0F0E]">
-                                                    {spec.value}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* In The Box */}
-
-                            <div>
-                                <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
-                                    In The Box
-                                </h2>
-                                <ul className="list-none p-0 m-0 mt-4 mb-8 flex flex-col gap-3">
-                                    {PRODUCT_DETAILS.inTheBox.map((item, index) => (
-                                        <li key={index} className="flex items-center gap-3 text-sm md:text-base leading-relaxed text-[#0B0F0E]">
-                                            <FaCheck className="text-[#C85A3A] flex-shrink-0" aria-hidden="true" />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            {/* System Requirements */}
-                            <div>
-                                <h2 className="text-xl md:text-2xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0 mb-4">
-                                    System Required
-                                </h2>
-                                <ul className="m-0 mt-4 pl-5 list-disc">
-                                    {PRODUCT_DETAILS.systemRequirements.map((req, index) => (
-                                        <li key={index} className="text-sm md:text-base leading-relaxed text-[#818B9C] mb-2">
-                                            {req}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                        </div>
-                    </div>
-                </section>
+                {/* Product Details */}
+                {(Object.keys(specifications).length > 0 || inTheBox.length > 0 || careInstructions.length > 0 || highlights.length > 0) && (
+                    <ProductDetailsTabs
+                        specifications={specifications}
+                        inTheBox={inTheBox}
+                        careInstructions={careInstructions}
+                        highlights={highlights}
+                    />
+                )}
 
                 {/* Related Products */}
-                <section className="mt-16 md:mt-20">
-                    <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
-                        <h2 className="text-3xl md:text-4xl font-semibold leading-normal tracking-tight text-[#0B0F0E] m-0">
-                            Related Product
-                        </h2>
-                        <a
-                            href="/products"
-                            className="px-4 py-2 md:px-4 md:py-2.5 bg-transparent text-[#C85A3A] border border-[#C85A3A] rounded-lg text-base md:text-lg font-semibold cursor-pointer transition-all duration-300 no-underline inline-block whitespace-nowrap hover:bg-[#C85A3A] hover:text-white hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0"
-                        >
-                            View Detail
-                        </a>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {RELATED_PRODUCTS.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                id={product.id}
-                                name={product.name}
-                                image={product.image}
-                                originalPrice={product.originalPrice}
-                                salePrice={product.salePrice}
-                                isLiked={likedProducts.has(product.id)}
-                                onToggleLike={toggleLike}
-                            />
-                        ))}
-                    </div>
-                </section>
+                {relatedProducts.length > 0 && (
+                    <section className="mt-16 md:mt-20">
+                        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
+                            <h2 className="text-3xl md:text-4xl font-semibold text-[#0B0F0E]">
+                                Related Products
+                            </h2>
+                            {relatedProducts.length > 0 && (
+                                <Link
+                                    href={`/products?category=${product.category}`}
+                                    className="px-4 py-2 bg-transparent text-[#C85A3A] border border-[#C85A3A] rounded-lg text-base font-semibold hover:bg-[#C85A3A] hover:text-white transition-all"
+                                >
+                                    View All
+                                </Link>
+                            )}
+                        </div>
+                        {relatedProducts.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {relatedProducts.map((p: any) => (
+                                    <ProductCard
+                                        key={p._id}
+                                        id={p._id}
+                                        name={p.name}
+                                        image={p.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
+                                        salePrice={`৳${p.price}`}
+                                        originalPrice={p.originalPrice ? `৳${p.originalPrice}` : undefined}
+                                        discount={
+                                            p.originalPrice && p.price < p.originalPrice
+                                                ? `${Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}% Off`
+                                                : undefined
+                                        }
+                                        isLiked={likedProducts.has(p._id)}
+                                        onToggleLike={toggleLike}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-[#818B9C] border border-[#E4E9EE] rounded-lg">
+                                <p className="text-4xl mb-3">🔍</p>
+                                <p className="font-semibold text-[#0B0F0E]">No related products found</p>
+                                <p className="text-sm mt-1">Check out our full collection</p>
+                                <Link
+                                    href="/products"
+                                    className="inline-block mt-4 px-6 py-2 bg-[#C85A3A] text-white rounded-lg text-sm font-medium hover:bg-[#A84830] transition-colors"
+                                >
+                                    Browse All Products
+                                </Link>
+                            </div>
+                        )}
+                    </section>
+                )}
             </div>
         </div>
     );

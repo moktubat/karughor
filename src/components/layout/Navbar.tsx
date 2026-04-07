@@ -2,10 +2,15 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { FaChevronDown, FaSearch, FaUser } from 'react-icons/fa';
-import { FaCartPlus } from 'react-icons/fa6';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/lib/authService';
+import { categoryService } from '@/lib/categoryService';
+import { getCategoryIcon } from '@/lib/categoryIcons';
+import { useCartStore } from '@/store/cartStore';
+import { MdOutlineShoppingCart } from 'react-icons/md';
 
 const Navbar: React.FC = () => {
     const router = useRouter();
@@ -13,58 +18,78 @@ const Navbar: React.FC = () => {
     const { user, isAuthenticated, logout: logoutStore, admin, isAdminAuthenticated } = useAuthStore();
 
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement | null>(null);
 
-    // Determine if we're on admin pages
+    const totalItems = useCartStore((s) => s.totalItems());
+
+    const userMenuRef = useRef<HTMLDivElement | null>(null);
+    const categoryMenuRef = useRef<HTMLDivElement | null>(null);
+
     const isAdminPage = pathname.startsWith('/admin');
 
-    // Close menu when clicking outside
+    // Fetch categories for dropdown
+    const { data: categories } = useQuery({
+        queryKey: ['categories'],
+        queryFn: categoryService.getAll,
+        staleTime: 5 * 60 * 1000,
+        enabled: !isAdminPage,
+    });
+
+    // Close menus on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
                 setShowUserMenu(false);
             }
+            if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target as Node)) {
+                setShowCategoryMenu(false);
+            }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Close menu on route change
+    // Close menus on route change
     useEffect(() => {
         setShowUserMenu(false);
+        setShowCategoryMenu(false);
     }, [pathname]);
 
-    const handleLogoClick = useCallback(() => {
-        router.push('/');
-    }, [router]);
+    const handleLogoClick = useCallback(() => router.push('/'), [router]);
 
-    const handleCartClick = useCallback(() => {
-        router.push('/cart');
-    }, [router]);
+    // ── Search ────────────────────────────────────────────────────────────────
+    const handleSearch = useCallback(
+        (e?: React.FormEvent) => {
+            e?.preventDefault();
+            const q = searchQuery.trim();
+            if (q) {
+                router.push(`/products?search=${encodeURIComponent(q)}`);
+                setSearchQuery('');
+            }
+        },
+        [searchQuery, router]
+    );
 
-    const handleUserClick = useCallback(() => {
-        setShowUserMenu((prev) => !prev);
-    }, []);
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') handleSearch();
+    };
 
+    // ── Logout ────────────────────────────────────────────────────────────────
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
             setShowUserMenu(false);
-
             if (isAdminPage) {
-                // Admin logout
                 await authService.adminLogout();
                 window.location.href = '/admin/login';
             } else {
-                // User logout
                 await authService.logout();
                 logoutStore();
                 window.location.href = '/';
             }
         } catch (error) {
-            console.error('Logout failed:', error);
             logoutStore();
             window.location.href = isAdminPage ? '/admin/login' : '/';
         } finally {
@@ -74,88 +99,159 @@ const Navbar: React.FC = () => {
 
     const handleProfileClick = () => {
         setShowUserMenu(false);
-        if (isAdminPage) {
-            router.push('/admin/profile');
-        } else if (isAuthenticated) {
-            router.push('/profile');
-        } else {
-            router.push('/login');
-        }
+        if (isAdminPage) router.push('/admin/profile');
+        else if (isAuthenticated) router.push('/profile');
+        else router.push('/login');
     };
 
-    // Determine current user name and auth status
-    const currentUserName = isAdminPage
-        ? (admin?.fullName || 'Guest User')
-        : (user?.fullName || 'Guest User');
-
+    const currentUserName = isAdminPage ? (admin?.fullName || 'Guest User') : (user?.fullName || 'Guest User');
     const currentIsAuthenticated = isAdminPage ? isAdminAuthenticated : isAuthenticated;
 
     return (
-        <nav className="bg-white w-full shadow-sm">
-            <div className="max-w-300 mx-auto py-4 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
+        <nav className="bg-white w-full shadow-sm sticky top-0 z-50">
+            <div className="max-w-300 mx-auto py-4 px-4 md:px-0 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
                 {/* Logo */}
                 <div
                     onClick={handleLogoClick}
-                    className="text-2xl font-bold whitespace-nowrap cursor-pointer"
+                    className="text-2xl font-bold whitespace-nowrap cursor-pointer text-[#0B0F0E]"
                 >
                     Karughor
                 </div>
 
                 {/* Search Box */}
-                <div className="flex items-center gap-4 bg-gray-100 rounded-lg px-4 py-3 flex-1 max-w-175 order-3 md:order-0 w-full md:w-auto">
-                    {/* Category */}
-                    <div className="hidden md:flex items-center gap-2 text-sm font-medium cursor-pointer whitespace-nowrap">
-                        All Categories
-                        <FaChevronDown />
-                    </div>
+                {!isAdminPage && (
+                    <form
+                        onSubmit={handleSearch}
+                        className="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-2.5 flex-1 max-w-175 order-3 md:order-none w-full md:w-auto"
+                    >
+                        {/* All Categories Dropdown */}
+                        <div className="relative hidden md:block" ref={categoryMenuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setShowCategoryMenu((prev) => !prev)}
+                                className="flex items-center gap-2 text-sm font-medium cursor-pointer whitespace-nowrap text-[#0B0F0E] hover:text-[#C85A3A] transition-colors"
+                            >
+                                All Categories
+                                <FaChevronDown className={`w-3 h-3 transition-transform ${showCategoryMenu ? 'rotate-180' : ''}`} />
+                            </button>
 
-                    <div className="hidden md:block w-px h-6 bg-gray-300" />
+                            {/* Category Dropdown Menu */}
+                            {showCategoryMenu && (
+                                <div className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-xl border border-[#E4E9EE] w-72 z-50 py-2 max-h-[70vh] overflow-y-auto">
+                                    <div className="px-4 py-2 text-xs font-semibold text-[#818B9C] uppercase tracking-wider border-b border-[#E4E9EE]">
+                                        Browse Categories
+                                    </div>
+                                    {categories && categories.length > 0 ? (
+                                        categories.map((cat) => {
+                                            const IconComponent = getCategoryIcon(cat.icon);
+                                            return (
+                                                <div key={cat._id}>
+                                                    <Link
+                                                        href={`/products?category=${cat.slug}`}
+                                                        onClick={() => setShowCategoryMenu(false)}
+                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#FFF5F2] hover:text-[#C85A3A] transition-colors group"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-full bg-[#F7F7F7] group-hover:bg-[#C85A3A]/10 flex items-center justify-center flex-shrink-0">
+                                                            <IconComponent className="w-4 h-4 text-[#818B9C] group-hover:text-[#C85A3A]" />
+                                                        </div>
+                                                        <span className="text-sm font-medium text-[#0B0F0E] group-hover:text-[#C85A3A] line-clamp-1">
+                                                            {cat.name}
+                                                        </span>
+                                                    </Link>
 
-                    {/* Input */}
-                    <input
-                        type="text"
-                        placeholder="Search on Karughor..."
-                        className="flex-1 bg-transparent outline-none text-sm font-medium placeholder-gray-500"
-                    />
+                                                    {/* Sub-categories */}
+                                                    {cat.subCategories && cat.subCategories.filter(s => s.isActive).length > 0 && (
+                                                        <div className="pl-14 pb-1">
+                                                            {cat.subCategories.filter(s => s.isActive).map((sub) => (
+                                                                <Link
+                                                                    key={sub._id}
+                                                                    href={`/products?category=${cat.slug}&sub=${sub.slug}`}
+                                                                    onClick={() => setShowCategoryMenu(false)}
+                                                                    className="block text-xs text-[#818B9C] py-1 hover:text-[#C85A3A] transition-colors"
+                                                                >
+                                                                    › {sub.name}
+                                                                </Link>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="px-4 py-3 text-sm text-[#818B9C]">Loading categories...</div>
+                                    )}
 
-                    {/* Search Button */}
-                    <button className="text-gray-500 hover:text-gray-900 transition">
-                        <FaSearch />
-                    </button>
-                </div>
+                                    <div className="border-t border-[#E4E9EE] mt-1 pt-1">
+                                        <Link
+                                            href="/products"
+                                            onClick={() => setShowCategoryMenu(false)}
+                                            className="flex items-center justify-center gap-1 px-4 py-2 text-sm font-medium text-[#C85A3A] hover:bg-[#FFF5F2] transition-colors"
+                                        >
+                                            View All Products →
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="hidden md:block w-px h-5 bg-gray-300" />
+
+                        {/* Search Input */}
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
+                            placeholder="Search on Karughor..."
+                            className="flex-1 bg-transparent outline-none text-sm font-medium placeholder-gray-500"
+                        />
+
+                        {/* Search Button */}
+                        <button
+                            type="submit"
+                            aria-label="Search"
+                            className="text-gray-500 hover:text-[#C85A3A] transition-colors"
+                        >
+                            <FaSearch />
+                        </button>
+                    </form>
+                )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-4 relative">
-                    {/* Cart - Hide on admin pages */}
+                <div className="flex items-center gap-4">
+                    {/* Cart */}
                     {!isAdminPage && (
                         <>
-                            <button
-                                onClick={handleCartClick}
-                                aria-label="Shopping cart"
-                                className="hover:opacity-70 transition cursor-pointer"
-                            >
-                                <FaCartPlus className="w-6 h-6" />
-                            </button>
+                            <Link href="/cart" className="relative">
+                                <button className="p-2 text-[#0B0F0E] hover:text-[#C85A3A] transition-colors">
+                                    <MdOutlineShoppingCart className="w-6 h-6" />
+                                    {totalItems > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#C85A3A] text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                            {totalItems > 9 ? '9+' : totalItems}
+                                        </span>
+                                    )}
+                                </button>
+                            </Link>
                             <div className="w-px h-6 bg-gray-300" />
                         </>
                     )}
 
-                    {/* User */}
+                    {/* User Menu */}
                     <div className="relative" ref={userMenuRef}>
                         <button
-                            onClick={handleUserClick}
+                            onClick={() => setShowUserMenu((prev) => !prev)}
                             aria-label="User account"
-                            className="hover:opacity-70 transition cursor-pointer"
+                            className="hover:text-[#C85A3A] transition-colors cursor-pointer"
                         >
                             <FaUser className="w-6 h-6" />
                         </button>
 
                         {showUserMenu && (
-                            <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg min-w-50 overflow-hidden z-50">
-                                <div className="px-4 py-3 font-semibold border-b">
+                            <div className="absolute right-0 mt-3 bg-white rounded-xl shadow-xl border border-[#E4E9EE] min-w-[180px] overflow-hidden z-50">
+                                <div className="px-4 py-3 font-semibold border-b border-[#E4E9EE] text-[#0B0F0E]">
                                     {currentUserName}
                                     {isAdminPage && admin && (
-                                        <span className="block text-xs text-[#818B9C] font-normal mt-1">
+                                        <span className="block text-xs text-[#818B9C] font-normal mt-0.5">
                                             {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}
                                         </span>
                                     )}
@@ -163,51 +259,33 @@ const Navbar: React.FC = () => {
 
                                 {currentIsAuthenticated ? (
                                     <>
-                                        <div
-                                            onClick={handleProfileClick}
-                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
-                                        >
+                                        <div onClick={handleProfileClick} className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 text-[#0B0F0E]">
                                             Profile
                                         </div>
-
                                         {!isAdminPage && (
                                             <div
-                                                onClick={() => {
-                                                    setShowUserMenu(false);
-                                                    router.push('/profile?tab=orders');
-                                                }}
-                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                                onClick={() => { setShowUserMenu(false); router.push('/profile?tab=orders'); }}
+                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 text-[#0B0F0E]"
                                             >
                                                 My Orders
                                             </div>
                                         )}
-
-                                        <div
-                                            onClick={handleLogout}
-                                            className="px-4 py-3 text-sm cursor-pointer text-red-500 hover:bg-red-50"
-                                        >
+                                        <div onClick={handleLogout} className="px-4 py-3 text-sm cursor-pointer text-red-500 hover:bg-red-50">
                                             {isLoggingOut ? 'Logging out...' : 'Logout'}
                                         </div>
                                     </>
                                 ) : (
                                     <>
                                         <div
-                                            onClick={() => {
-                                                setShowUserMenu(false);
-                                                router.push(isAdminPage ? '/admin/login' : '/login');
-                                            }}
-                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                            onClick={() => { setShowUserMenu(false); router.push(isAdminPage ? '/admin/login' : '/login'); }}
+                                            className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 text-[#0B0F0E]"
                                         >
                                             Login
                                         </div>
-
                                         {!isAdminPage && (
                                             <div
-                                                onClick={() => {
-                                                    setShowUserMenu(false);
-                                                    router.push('/register');
-                                                }}
-                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-100"
+                                                onClick={() => { setShowUserMenu(false); router.push('/register'); }}
+                                                className="px-4 py-3 text-sm cursor-pointer hover:bg-gray-50 text-[#0B0F0E]"
                                             >
                                                 Register
                                             </div>

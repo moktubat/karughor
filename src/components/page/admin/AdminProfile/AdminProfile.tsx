@@ -1,8 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { FaUser, FaEnvelope, FaLock, FaStore, FaPhone, FaCamera } from 'react-icons/fa';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { FaUser, FaEnvelope, FaLock, FaStore, FaPhone, FaCamera, FaSpinner } from 'react-icons/fa';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+
+function getAdminToken() {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
+}
+
+function authHeaders() {
+    const token = getAdminToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 interface ProfileFormValues {
     fullName: string;
@@ -24,381 +38,376 @@ interface PasswordFormValues {
 }
 
 const AdminProfile = () => {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'profile' | 'store' | 'password'>('profile');
-    const [profileImage, setProfileImage] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
 
+    // ── Fetch admin profile ────────────────────────────────────────────────────
+    const { data: adminData, isLoading } = useQuery({
+        queryKey: ['admin-profile'],
+        queryFn: async () => {
+            const res = await axios.get(`${API_URL}/admin/profile`, {
+                headers: authHeaders(),
+                withCredentials: true,
+            });
+            return res.data.data.admin;
+        },
+    });
+
+    // ── Profile form ───────────────────────────────────────────────────────────
     const {
         register: registerProfile,
         handleSubmit: handleSubmitProfile,
+        reset: resetProfile,
         formState: { errors: profileErrors },
-    } = useForm<ProfileFormValues>({
-        defaultValues: {
-            fullName: 'Admin User',
-            email: 'admin@store.com',
-            phone: '+880 1700-000000',
+    } = useForm<ProfileFormValues>();
+
+    useEffect(() => {
+        if (adminData) {
+            resetProfile({
+                fullName: adminData.fullName || '',
+                email: adminData.email || '',
+                phone: adminData.phone || '',
+            });
+        }
+    }, [adminData, resetProfile]);
+
+    const updateProfileMutation = useMutation({
+        mutationFn: async (data: ProfileFormValues) => {
+            const res = await axios.put(
+                `${API_URL}/admin/profile`,
+                { fullName: data.fullName, phone: data.phone },
+                { headers: authHeaders(), withCredentials: true }
+            );
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-profile'] });
+            showSuccess('Profile updated successfully!');
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.error?.message || 'Failed to update profile');
         },
     });
 
+    // ── Store form ─────────────────────────────────────────────────────────────
     const {
         register: registerStore,
         handleSubmit: handleSubmitStore,
+        reset: resetStore,
         formState: { errors: storeErrors },
-    } = useForm<StoreFormValues>({
-        defaultValues: {
-            storeName: 'My E-Commerce Store',
-            storeEmail: 'support@store.com',
-            storePhone: '+880 1800-000000',
-            storeAddress: 'Dhaka, Bangladesh',
+    } = useForm<StoreFormValues>();
+
+    useEffect(() => {
+        if (adminData?.storeInfo) {
+            resetStore({
+                storeName: adminData.storeInfo.name || '',
+                storeEmail: adminData.storeInfo.email || '',
+                storePhone: adminData.storeInfo.phone || '',
+                storeAddress: adminData.storeInfo.address || '',
+            });
+        }
+    }, [adminData, resetStore]);
+
+    const updateStoreMutation = useMutation({
+        mutationFn: async (data: StoreFormValues) => {
+            const res = await axios.put(
+                `${API_URL}/admin/profile`,
+                {
+                    storeInfo: {
+                        name: data.storeName,
+                        email: data.storeEmail,
+                        phone: data.storePhone,
+                        address: data.storeAddress,
+                    },
+                },
+                { headers: authHeaders(), withCredentials: true }
+            );
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-profile'] });
+            showSuccess('Store info updated successfully!');
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.error?.message || 'Failed to update store info');
         },
     });
 
+    // ── Password form ──────────────────────────────────────────────────────────
     const {
         register: registerPassword,
         handleSubmit: handleSubmitPassword,
         watch,
-        formState: { errors: passwordErrors },
         reset: resetPassword,
+        formState: { errors: passwordErrors },
     } = useForm<PasswordFormValues>();
 
     const newPassword = watch('newPassword');
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfileImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
-        }
+    const changePasswordMutation = useMutation({
+        mutationFn: async (data: PasswordFormValues) => {
+            const res = await axios.put(
+                `${API_URL}/admin/profile/password`,
+                { currentPassword: data.currentPassword, newPassword: data.newPassword },
+                { headers: authHeaders(), withCredentials: true }
+            );
+            return res.data;
+        },
+        onSuccess: () => {
+            resetPassword();
+            showSuccess('Password changed successfully!');
+        },
+        onError: (err: any) => {
+            showError(err.response?.data?.error?.message || 'Failed to change password');
+        },
+    });
+
+    const showSuccess = (msg: string) => {
+        setSuccessMsg(msg);
+        setErrorMsg('');
+        setTimeout(() => setSuccessMsg(''), 3000);
     };
 
-    const onSubmitProfile = (data: ProfileFormValues) => {
-        console.log('Profile updated:', data);
-        alert('Profile updated successfully!');
+    const showError = (msg: string) => {
+        setErrorMsg(msg);
+        setSuccessMsg('');
+        setTimeout(() => setErrorMsg(''), 4000);
     };
 
-    const onSubmitStore = (data: StoreFormValues) => {
-        console.log('Store info updated:', data);
-        alert('Store information updated successfully!');
-    };
-
-    const onSubmitPassword = (data: PasswordFormValues) => {
-        console.log('Password changed');
-        alert('Password changed successfully!');
-        resetPassword();
-    };
+    if (isLoading) {
+        return (
+            <div className="bg-[#F7F7F7] min-h-screen flex items-center justify-center">
+                <FaSpinner className="animate-spin w-8 h-8 text-[#C85A3A]" />
+            </div>
+        );
+    }
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
             <div className="max-w-300 mx-auto">
-                {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Admin Profile</h1>
                     <p className="text-[#818B9C]">Manage your account and store settings</p>
                 </div>
 
+                {/* Toast messages */}
+                {successMsg && (
+                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
+                        ✅ {successMsg}
+                    </div>
+                )}
+                {errorMsg && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 font-medium">
+                        ❌ {errorMsg}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Sidebar */}
                     <div className="lg:col-span-1">
                         <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                            {/* Profile Image */}
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative">
                                     <div className="w-32 h-32 rounded-full bg-[#F6F6F6] flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
-                                        {profileImage ? (
-                                            <img
-                                                src={profileImage}
-                                                alt="Admin"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <FaUser className="w-16 h-16 text-[#818B9C]" />
-                                        )}
+                                        <FaUser className="w-16 h-16 text-[#818B9C]" />
                                     </div>
-                                    <label
-                                        htmlFor="admin-profile-upload"
-                                        className="absolute bottom-0 right-0 w-10 h-10 bg-[#C85A3A] text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-[#A84830] transition-all shadow-lg"
-                                    >
+                                    <div className="absolute bottom-0 right-0 w-10 h-10 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center cursor-not-allowed" title="Upload disabled">
                                         <FaCamera className="w-4 h-4" />
-                                        <input
-                                            type="file"
-                                            id="admin-profile-upload"
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
-                                            className="hidden"
-                                        />
-                                    </label>
+                                    </div>
                                 </div>
                                 <h3 className="text-lg font-semibold text-[#0B0F0E] mt-4">
-                                    Admin User
+                                    {adminData?.fullName || 'Admin'}
                                 </h3>
-                                <p className="text-sm text-[#818B9C]">Administrator</p>
+                                <p className="text-sm text-[#818B9C]">{adminData?.email}</p>
+                                <span className="mt-2 text-xs bg-[#C85A3A]/10 text-[#C85A3A] px-3 py-1 rounded-full font-semibold">
+                                    {adminData?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                                </span>
                             </div>
 
-                            {/* Navigation */}
                             <nav className="space-y-2">
-                                <button
-                                    onClick={() => setActiveTab('profile')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'profile'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaUser />
-                                    <span className="font-medium">Personal Info</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('store')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'store'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaStore />
-                                    <span className="font-medium">Store Info</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('password')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'password'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaLock />
-                                    <span className="font-medium">Change Password</span>
-                                </button>
+                                {[
+                                    { id: 'profile', label: 'Personal Info', icon: FaUser },
+                                    { id: 'store', label: 'Store Info', icon: FaStore },
+                                    { id: 'password', label: 'Change Password', icon: FaLock },
+                                ].map(({ id, label, icon: Icon }) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setActiveTab(id as any)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === id ? 'bg-[#C85A3A] text-white' : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'}`}
+                                    >
+                                        <Icon />
+                                        <span className="font-medium">{label}</span>
+                                    </button>
+                                ))}
                             </nav>
                         </div>
                     </div>
 
                     {/* Main Content */}
                     <div className="lg:col-span-3">
-                        {/* Personal Info Tab */}
+
+                        {/* Personal Info */}
                         {activeTab === 'profile' && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">
-                                    Personal Information
-                                </h2>
+                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-2">Personal Information</h2>
+                                <p className="text-sm text-[#818B9C] mb-6">
+                                    Your login email is <span className="font-semibold text-[#0B0F0E]">{adminData?.email}</span> — to change it, update it here and use the new email to log in next time.
+                                </p>
 
-                                <form
-                                    onSubmit={handleSubmitProfile(onSubmitProfile)}
-                                    className="space-y-6"
-                                >
-                                    {/* Full Name */}
+                                <form onSubmit={handleSubmitProfile((d) => updateProfileMutation.mutate(d))} className="space-y-6">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaUser className="text-[#C85A3A]" />
-                                            Full Name
+                                            <FaUser className="text-[#C85A3A]" /> Full Name
                                         </label>
                                         <input
                                             type="text"
-                                            {...registerProfile('fullName', {
-                                                required: 'Full name is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            {...registerProfile('fullName', { required: 'Full name is required' })}
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
-                                        {profileErrors.fullName && (
-                                            <span className="text-sm text-red-500">
-                                                {profileErrors.fullName.message}
-                                            </span>
-                                        )}
+                                        {profileErrors.fullName && <span className="text-sm text-red-500">{profileErrors.fullName.message}</span>}
                                     </div>
 
-                                    {/* Email */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaEnvelope className="text-[#C85A3A]" />
-                                            Email
+                                            <FaEnvelope className="text-[#C85A3A]" /> Email
+                                            <span className="text-xs text-[#818B9C] font-normal">(used for login)</span>
                                         </label>
                                         <input
                                             type="email"
-                                            {...registerProfile('email', {
-                                                required: 'Email is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            disabled
+                                            {...registerProfile('email')}
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base bg-[#F7F7F7] cursor-not-allowed"
                                         />
-                                        {profileErrors.email && (
-                                            <span className="text-sm text-red-500">
-                                                {profileErrors.email.message}
-                                            </span>
-                                        )}
+                                        <span className="text-xs text-[#818B9C]">Email cannot be changed from here for security reasons</span>
                                     </div>
 
-                                    {/* Phone */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaPhone className="text-[#C85A3A]" />
-                                            Phone
+                                            <FaPhone className="text-[#C85A3A]" /> Phone
                                         </label>
                                         <input
                                             type="tel"
-                                            {...registerProfile('phone', {
-                                                required: 'Phone is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            {...registerProfile('phone')}
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
                                     </div>
 
                                     <button
                                         type="submit"
-                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
+                                        disabled={updateProfileMutation.isPending}
+                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50 flex items-center gap-2"
                                     >
+                                        {updateProfileMutation.isPending && <FaSpinner className="animate-spin" />}
                                         Save Changes
                                     </button>
                                 </form>
                             </div>
                         )}
 
-                        {/* Store Info Tab */}
+                        {/* Store Info */}
                         {activeTab === 'store' && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">
-                                    Store Information
-                                </h2>
+                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">Store Information</h2>
 
-                                <form
-                                    onSubmit={handleSubmitStore(onSubmitStore)}
-                                    className="space-y-6"
-                                >
-                                    {/* Store Name */}
+                                <form onSubmit={handleSubmitStore((d) => updateStoreMutation.mutate(d))} className="space-y-6">
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Store Name
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Store Name</label>
                                         <input
                                             type="text"
-                                            {...registerStore('storeName', {
-                                                required: 'Store name is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            {...registerStore('storeName')}
+                                            placeholder="e.g. Karughor"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
                                     </div>
-
-                                    {/* Store Email */}
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Store Email
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Store Email</label>
                                         <input
                                             type="email"
                                             {...registerStore('storeEmail')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            placeholder="support@karughor.com"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
                                     </div>
-
-                                    {/* Store Phone */}
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Store Phone
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Store Phone</label>
                                         <input
                                             type="tel"
                                             {...registerStore('storePhone')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            placeholder="+880 1XXXXXXXXX"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
                                     </div>
-
-                                    {/* Store Address */}
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Store Address
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Store Address</label>
                                         <textarea
                                             rows={3}
                                             {...registerStore('storeAddress')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none"
+                                            placeholder="Dhaka, Bangladesh"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none"
                                         />
                                     </div>
-
                                     <button
                                         type="submit"
-                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
+                                        disabled={updateStoreMutation.isPending}
+                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50 flex items-center gap-2"
                                     >
+                                        {updateStoreMutation.isPending && <FaSpinner className="animate-spin" />}
                                         Update Store Info
                                     </button>
                                 </form>
                             </div>
                         )}
 
-                        {/* Change Password Tab */}
+                        {/* Change Password */}
                         {activeTab === 'password' && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">
-                                    Change Password
-                                </h2>
+                                <h2 className="text-2xl font-bold text-[#0B0F0E] mb-2">Change Password</h2>
+                                <p className="text-sm text-[#818B9C] mb-6">
+                                    Your new password will be used for all future logins at <span className="font-semibold text-[#0B0F0E]">/admin/login</span>.
+                                </p>
 
-                                <form
-                                    onSubmit={handleSubmitPassword(onSubmitPassword)}
-                                    className="space-y-6"
-                                >
-                                    {/* Current Password */}
+                                <form onSubmit={handleSubmitPassword((d) => changePasswordMutation.mutate(d))} className="space-y-6">
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Current Password
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Current Password</label>
                                         <input
                                             type="password"
-                                            {...registerPassword('currentPassword', {
-                                                required: 'Current password is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            {...registerPassword('currentPassword', { required: 'Current password is required' })}
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
-                                        {passwordErrors.currentPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.currentPassword.message}
-                                            </span>
-                                        )}
+                                        {passwordErrors.currentPassword && <span className="text-sm text-red-500">{passwordErrors.currentPassword.message}</span>}
                                     </div>
-
-                                    {/* New Password */}
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            New Password
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">New Password</label>
                                         <input
                                             type="password"
                                             {...registerPassword('newPassword', {
                                                 required: 'New password is required',
-                                                minLength: {
-                                                    value: 8,
-                                                    message: 'Password must be at least 8 characters',
-                                                },
+                                                minLength: { value: 8, message: 'Minimum 8 characters' },
                                             })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
-                                        {passwordErrors.newPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.newPassword.message}
-                                            </span>
-                                        )}
+                                        {passwordErrors.newPassword && <span className="text-sm text-red-500">{passwordErrors.newPassword.message}</span>}
                                     </div>
-
-                                    {/* Confirm Password */}
                                     <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Confirm New Password
-                                        </label>
+                                        <label className="text-base font-medium text-[#0B0F0E]">Confirm New Password</label>
                                         <input
                                             type="password"
                                             {...registerPassword('confirmPassword', {
-                                                required: 'Please confirm your password',
-                                                validate: (value) =>
-                                                    value === newPassword || 'Passwords do not match',
+                                                required: 'Please confirm password',
+                                                validate: (v) => v === newPassword || 'Passwords do not match',
                                             })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                         />
-                                        {passwordErrors.confirmPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.confirmPassword.message}
-                                            </span>
-                                        )}
+                                        {passwordErrors.confirmPassword && <span className="text-sm text-red-500">{passwordErrors.confirmPassword.message}</span>}
                                     </div>
-
                                     <button
                                         type="submit"
-                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
+                                        disabled={changePasswordMutation.isPending}
+                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all disabled:opacity-50 flex items-center gap-2"
                                     >
+                                        {changePasswordMutation.isPending && <FaSpinner className="animate-spin" />}
                                         Change Password
                                     </button>
                                 </form>

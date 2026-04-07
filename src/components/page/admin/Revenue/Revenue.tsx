@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import {
     FaDollarSign,
     FaCheckCircle,
@@ -9,61 +11,74 @@ import {
     FaCalendarAlt,
     FaTruck,
 } from 'react-icons/fa';
-import { MdTrendingUp, MdTrendingDown } from 'react-icons/md';
 
-interface RevenueStats {
-    totalCodCollected: number;
-    todayEarnings: number;
-    thisMonthEarnings: number;
-    deliveredOrders: number;
-    cancelledOrders: number;
-    returnedOrders: number;
-    pendingCod: number;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
-interface DailySales {
-    date: string;
-    delivered: number;
-    revenue: number;
+type Period = 'today' | 'week' | 'month' | 'year';
+
+function getAdminToken() {
+    if (typeof window === 'undefined') return '';
+    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
 }
 
 const Revenue = () => {
-    const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'year'>(
-        'month'
-    );
+    const [selectedPeriod, setSelectedPeriod] = useState<Period>('month');
 
-    // Mock data
-    const stats: RevenueStats = {
-        totalCodCollected: 45280,
-        todayEarnings: 1840,
-        thisMonthEarnings: 12450,
-        deliveredOrders: 245,
-        cancelledOrders: 18,
-        returnedOrders: 5,
-        pendingCod: 3240,
-    };
+    const { data, isLoading } = useQuery({
+        queryKey: ['admin-revenue', selectedPeriod],
+        queryFn: async () => {
+            const token = getAdminToken();
+            const res = await axios.get(`${API_URL}/admin/revenue/stats?period=${selectedPeriod}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            });
+            return res.data.data;
+        },
+    });
 
-    const dailySales: DailySales[] = [
-        { date: '2024-01-20', delivered: 12, revenue: 1840 },
-        { date: '2024-01-19', delivered: 15, revenue: 2150 },
-        { date: '2024-01-18', delivered: 10, revenue: 1520 },
-        { date: '2024-01-17', delivered: 8, revenue: 980 },
-        { date: '2024-01-16', delivered: 14, revenue: 2240 },
-        { date: '2024-01-15', delivered: 11, revenue: 1680 },
-        { date: '2024-01-14', delivered: 9, revenue: 1340 },
-    ];
+    // Also fetch order counts for delivered/cancelled/returned
+    const { data: ordersData } = useQuery({
+        queryKey: ['admin-orders-summary'],
+        queryFn: async () => {
+            const token = getAdminToken();
+            const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            });
+            const orders = res.data.data.orders as any[];
+            return {
+                delivered: orders.filter(o => o.status === 'delivered').length,
+                cancelled: orders.filter(o => o.status === 'cancelled').length,
+                returned: orders.filter(o => o.status === 'returned').length,
+                pending: orders.filter(o => ['new', 'confirmed', 'shipped'].includes(o.status)).length,
+            };
+        },
+        staleTime: 60_000,
+    });
 
-    const topProducts = [
-        { name: 'Logitech G502 Hero', sold: 45, revenue: 4005 },
-        { name: 'Gaming Keyboard', sold: 32, revenue: 3840 },
-        { name: 'Wireless Headset', sold: 28, revenue: 7840 },
-        { name: 'Gaming Mouse Pad', sold: 56, revenue: 1680 },
-        { name: 'USB-C Cable', sold: 89, revenue: 890 },
-    ];
+    const revenue = data?.revenue;
+    const dailySales: any[] = data?.dailySales || [];
+    const topProducts: any[] = data?.topProducts || [];
+
+    const totalRevenue = revenue?.total || 0;
+    const pendingCod = ordersData
+        ? (ordersData.pending * (totalRevenue / Math.max((ordersData.delivered || 1), 1)) * 0.3)
+        : 0;
+
+    const cancellationRate = ordersData && (ordersData.delivered + ordersData.cancelled) > 0
+        ? ((ordersData.cancelled / (ordersData.delivered + ordersData.cancelled)) * 100).toFixed(1)
+        : null;
+
+    const returnRate = ordersData && ordersData.delivered > 0
+        ? ((ordersData.returned / ordersData.delivered) * 100).toFixed(1)
+        : null;
+
+    const weeklyTotal = dailySales.reduce((sum, d) => sum + (d.revenue || 0), 0);
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-[1400px] mx-auto">
+            <div className="max-w-350 mx-auto">
+
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Revenue & Sales</h1>
@@ -72,13 +87,13 @@ const Revenue = () => {
 
                 {/* Period Selector */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-2 mb-6 inline-flex gap-2">
-                    {(['today', 'week', 'month', 'year'] as const).map((period) => (
+                    {(['today', 'week', 'month', 'year'] as Period[]).map((period) => (
                         <button
                             key={period}
                             onClick={() => setSelectedPeriod(period)}
                             className={`px-6 py-2 rounded-md font-medium transition-all duration-200 capitalize ${selectedPeriod === period
-                                    ? 'bg-[#C85A3A] text-white'
-                                    : 'text-[#818B9C] hover:bg-[#F7F7F7]'
+                                ? 'bg-[#C85A3A] text-white'
+                                : 'text-[#818B9C] hover:bg-[#F7F7F7]'
                                 }`}
                         >
                             {period}
@@ -88,207 +103,238 @@ const Revenue = () => {
 
                 {/* Revenue Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+                    {/* Total Revenue */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-green-50 p-3 rounded-lg text-green-600">
                                 <FaDollarSign className="w-6 h-6" />
                             </div>
-                            <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
-                                <MdTrendingUp className="w-4 h-4" />
-                                +15%
-                            </div>
                         </div>
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">
-                            Total COD Collected
-                        </h3>
-                        <p className="text-3xl font-bold text-[#0B0F0E]">${stats.totalCodCollected}</p>
-                        <p className="text-xs text-[#818B9C] mt-2">All time</p>
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Total Revenue</h3>
+                        {isLoading
+                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                            : <p className="text-3xl font-bold text-[#0B0F0E]">৳{totalRevenue.toLocaleString()}</p>
+                        }
+                        <p className="text-xs text-[#818B9C] mt-2 capitalize">{selectedPeriod}</p>
                     </div>
 
+                    {/* Orders Count */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
                                 <FaCalendarAlt className="w-6 h-6" />
                             </div>
-                            <div className="flex items-center gap-1 text-sm font-semibold text-blue-600">
-                                <MdTrendingUp className="w-4 h-4" />
-                                +8%
-                            </div>
                         </div>
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Today's Earnings</h3>
-                        <p className="text-3xl font-bold text-[#0B0F0E]">${stats.todayEarnings}</p>
-                        <p className="text-xs text-[#818B9C] mt-2">From delivered orders</p>
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Orders Delivered</h3>
+                        {isLoading
+                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                            : <p className="text-3xl font-bold text-[#0B0F0E]">{revenue?.count || 0}</p>
+                        }
+                        <p className="text-xs text-[#818B9C] mt-2">From this period</p>
                     </div>
 
+                    {/* Delivered Orders */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-purple-50 p-3 rounded-lg text-purple-600">
                                 <FaCheckCircle className="w-6 h-6" />
                             </div>
-                            <div className="flex items-center gap-1 text-sm font-semibold text-purple-600">
-                                <MdTrendingUp className="w-4 h-4" />
-                                +12%
-                            </div>
                         </div>
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">This Month</h3>
-                        <p className="text-3xl font-bold text-[#0B0F0E]">
-                            ${stats.thisMonthEarnings}
-                        </p>
-                        <p className="text-xs text-[#818B9C] mt-2">January 2024</p>
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Total Delivered</h3>
+                        {isLoading || !ordersData
+                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                            : <p className="text-3xl font-bold text-[#0B0F0E]">{ordersData.delivered}</p>
+                        }
+                        <p className="text-xs text-[#818B9C] mt-2">All time</p>
                     </div>
 
+                    {/* Pending COD */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-orange-50 p-3 rounded-lg text-orange-600">
                                 <FaTruck className="w-6 h-6" />
                             </div>
-                            <div className="flex items-center gap-1 text-sm font-semibold text-orange-600">
-                                <MdTrendingDown className="w-4 h-4" />
-                                -5%
-                            </div>
                         </div>
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Pending COD</h3>
-                        <p className="text-3xl font-bold text-[#0B0F0E]">${stats.pendingCod}</p>
-                        <p className="text-xs text-[#818B9C] mt-2">Orders in transit</p>
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Pending Orders</h3>
+                        {isLoading || !ordersData
+                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                            : <p className="text-3xl font-bold text-[#0B0F0E]">{ordersData.pending}</p>
+                        }
+                        <p className="text-xs text-[#818B9C] mt-2">In transit</p>
                     </div>
                 </div>
 
-                {/* Order Status Overview */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="bg-green-50 p-4 rounded-lg text-green-600">
-                                <FaCheckCircle className="w-8 h-8" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-sm text-[#818B9C] mb-1">Delivered Orders</h3>
-                                <p className="text-3xl font-bold text-green-600">
-                                    {stats.deliveredOrders}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-[#E4E9EE]">
-                            <p className="text-sm text-[#818B9C]">
-                                Payment collected: <span className="font-semibold text-green-600">${stats.totalCodCollected}</span>
-                            </p>
-                        </div>
-                    </div>
+                {/* Order Status Overview — only show if ordersData has data */}
+                {ordersData && (ordersData.delivered > 0 || ordersData.cancelled > 0 || ordersData.returned > 0) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="bg-red-50 p-4 rounded-lg text-red-600">
-                                <FaTimes className="w-8 h-8" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-sm text-[#818B9C] mb-1">Cancelled Orders</h3>
-                                <p className="text-3xl font-bold text-red-600">
-                                    {stats.cancelledOrders}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-[#E4E9EE]">
-                            <p className="text-sm text-[#818B9C]">
-                                Cancellation rate: <span className="font-semibold text-red-600">
-                                    {((stats.cancelledOrders / (stats.deliveredOrders + stats.cancelledOrders)) * 100).toFixed(1)}%
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="bg-orange-50 p-4 rounded-lg text-orange-600">
-                                <FaUndo className="w-8 h-8" />
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-sm text-[#818B9C] mb-1">Returned Orders</h3>
-                                <p className="text-3xl font-bold text-orange-600">
-                                    {stats.returnedOrders}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-[#E4E9EE]">
-                            <p className="text-sm text-[#818B9C]">
-                                Return rate: <span className="font-semibold text-orange-600">
-                                    {((stats.returnedOrders / stats.deliveredOrders) * 100).toFixed(1)}%
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Daily Sales & Top Products */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Daily Sales */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">
-                            Daily Sales (Last 7 Days)
-                        </h2>
-                        <div className="space-y-4">
-                            {dailySales.map((day) => (
-                                <div
-                                    key={day.date}
-                                    className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg hover:bg-[#E4E9EE] transition-colors"
-                                >
-                                    <div>
-                                        <p className="font-semibold text-[#0B0F0E] mb-1">
-                                            {new Date(day.date).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                            })}
-                                        </p>
-                                        <p className="text-sm text-[#818B9C]">
-                                            {day.delivered} orders delivered
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-bold text-[#C85A3A]">
-                                            ${day.revenue}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-6 pt-6 border-t border-[#E4E9EE]">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[#818B9C]">Weekly Total:</span>
-                                <span className="text-2xl font-bold text-[#0B0F0E]">
-                                    ${dailySales.reduce((sum, day) => sum + day.revenue, 0)}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Top Products */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                        <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Top Products</h2>
-                        <div className="space-y-4">
-                            {topProducts.map((product, index) => (
-                                <div
-                                    key={index}
-                                    className="flex items-center gap-4 p-4 bg-[#F7F7F7] rounded-lg"
-                                >
-                                    <div className="w-10 h-10 bg-[#C85A3A] text-white rounded-full flex items-center justify-center font-bold">
-                                        {index + 1}
+                        {ordersData.delivered > 0 && (
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="bg-green-50 p-4 rounded-lg text-green-600">
+                                        <FaCheckCircle className="w-8 h-8" />
                                     </div>
                                     <div className="flex-1">
-                                        <p className="font-semibold text-[#0B0F0E] mb-1">
-                                            {product.name}
-                                        </p>
-                                        <p className="text-sm text-[#818B9C]">
-                                            {product.sold} units sold
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-lg font-bold text-[#C85A3A]">
-                                            ${product.revenue}
-                                        </p>
+                                        <h3 className="text-sm text-[#818B9C] mb-1">Delivered Orders</h3>
+                                        <p className="text-3xl font-bold text-green-600">{ordersData.delivered}</p>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
+                                <div className="pt-4 border-t border-[#E4E9EE]">
+                                    <p className="text-sm text-[#818B9C]">
+                                        Revenue collected:{' '}
+                                        <span className="font-semibold text-green-600">
+                                            ৳{totalRevenue.toLocaleString()}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {ordersData.cancelled > 0 && (
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="bg-red-50 p-4 rounded-lg text-red-600">
+                                        <FaTimes className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm text-[#818B9C] mb-1">Cancelled Orders</h3>
+                                        <p className="text-3xl font-bold text-red-600">{ordersData.cancelled}</p>
+                                    </div>
+                                </div>
+                                {cancellationRate && (
+                                    <div className="pt-4 border-t border-[#E4E9EE]">
+                                        <p className="text-sm text-[#818B9C]">
+                                            Cancellation rate:{' '}
+                                            <span className="font-semibold text-red-600">{cancellationRate}%</span>
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {ordersData.returned > 0 && (
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="bg-orange-50 p-4 rounded-lg text-orange-600">
+                                        <FaUndo className="w-8 h-8" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="text-sm text-[#818B9C] mb-1">Returned Orders</h3>
+                                        <p className="text-3xl font-bold text-orange-600">{ordersData.returned}</p>
+                                    </div>
+                                </div>
+                                {returnRate && (
+                                    <div className="pt-4 border-t border-[#E4E9EE]">
+                                        <p className="text-sm text-[#818B9C]">
+                                            Return rate:{' '}
+                                            <span className="font-semibold text-orange-600">{returnRate}%</span>
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-                </div>
+                )}
+
+                {/* Daily Sales & Top Products — only shown if data exists */}
+                {!isLoading && (dailySales.length > 0 || topProducts.length > 0) && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                        {/* Daily Sales */}
+                        {dailySales.length > 0 && (
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Daily Sales</h2>
+                                <div className="space-y-4">
+                                    {dailySales.map((day) => (
+                                        <div
+                                            key={day._id}
+                                            className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg hover:bg-[#E4E9EE] transition-colors"
+                                        >
+                                            <div>
+                                                <p className="font-semibold text-[#0B0F0E] mb-1">
+                                                    {new Date(day._id).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    })}
+                                                </p>
+                                                <p className="text-sm text-[#818B9C]">
+                                                    {day.orders} order{day.orders !== 1 ? 's' : ''} delivered
+                                                </p>
+                                            </div>
+                                            <p className="text-2xl font-bold text-[#C85A3A]">
+                                                ৳{(day.revenue || 0).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                                {weeklyTotal > 0 && (
+                                    <div className="mt-6 pt-6 border-t border-[#E4E9EE]">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[#818B9C]">Period Total:</span>
+                                            <span className="text-2xl font-bold text-[#0B0F0E]">
+                                                ৳{weeklyTotal.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Top Products */}
+                        {topProducts.length > 0 && (
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Top Products</h2>
+                                <div className="space-y-4">
+                                    {topProducts.map((product, index) => (
+                                        <div
+                                            key={product._id || index}
+                                            className="flex items-center gap-4 p-4 bg-[#F7F7F7] rounded-lg"
+                                        >
+                                            <div className="w-10 h-10 bg-[#C85A3A] text-white rounded-full flex items-center justify-center font-bold shrink-0">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-[#0B0F0E] mb-1 line-clamp-1">
+                                                    {product.name || 'Unknown Product'}
+                                                </p>
+                                                <p className="text-sm text-[#818B9C]">
+                                                    {product.sold} units sold
+                                                </p>
+                                            </div>
+                                            <p className="text-lg font-bold text-[#C85A3A] shrink-0">
+                                                ৳{(product.revenue || 0).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Loading state for bottom section */}
+                {isLoading && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {[0, 1].map(i => (
+                            <div key={i} className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                                <div className="h-6 bg-gray-100 rounded animate-pulse w-1/3 mb-6" />
+                                {[0, 1, 2, 3].map(j => (
+                                    <div key={j} className="h-16 bg-gray-100 rounded animate-pulse mb-3" />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Empty state — only shown after loading with no data */}
+                {!isLoading && dailySales.length === 0 && topProducts.length === 0 && (
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-16 text-center">
+                        <FaDollarSign className="w-12 h-12 mx-auto mb-4 text-[#E4E9EE]" />
+                        <p className="text-[#818B9C]">No revenue data for this period yet.</p>
+                        <p className="text-sm text-[#818B9C] mt-1">Sales will appear here once orders are delivered.</p>
+                    </div>
+                )}
             </div>
         </div>
     );

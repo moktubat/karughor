@@ -1,156 +1,119 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import {
-    FaSearch,
-    FaFilter,
-    FaEye,
-    FaPrint,
-    FaCheckCircle,
-    FaTruck,
-    FaTimes,
-    FaPhone,
-    FaMapMarkerAlt,
+    FaSearch, FaEye, FaPhone, FaMapMarkerAlt,
+    FaCheckCircle, FaTruck, FaTimes, FaSpinner,
 } from 'react-icons/fa';
-import { MdKeyboardArrowRight } from 'react-icons/md';
 
-interface Order {
-    id: string;
-    orderNumber: string;
-    customerName: string;
-    phone: string;
-    address: string;
-    products: {
-        name: string;
-        quantity: number;
-        price: number;
-    }[];
-    totalAmount: number;
-    deliveryCharge: number;
-    status: 'new' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
-    paymentMethod: 'COD';
-    orderDate: string;
-    deliveryDate?: string;
-    notes?: string;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+
+const STATUS_OPTIONS = [
+    { value: 'all', label: 'All Orders' },
+    { value: 'new', label: 'New' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'shipped', label: 'Shipped' },
+    { value: 'delivered', label: 'Delivered' },
+    { value: 'cancelled', label: 'Cancelled' },
+];
+
+const NEXT_STATUS: Record<string, string> = {
+    new: 'confirmed',
+    confirmed: 'shipped',
+    shipped: 'delivered',
+};
+
+const getStatusBadge = (status: string) => {
+    const map: Record<string, string> = {
+        new: 'bg-blue-100 text-blue-700 border-blue-200',
+        confirmed: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+        shipped: 'bg-purple-100 text-purple-700 border-purple-200',
+        delivered: 'bg-green-100 text-green-700 border-green-200',
+        cancelled: 'bg-red-100 text-red-700 border-red-200',
+        returned: 'bg-gray-100 text-gray-700 border-gray-200',
+    };
+    return map[status] || map.new;
+};
 
 const OrdersManagement = () => {
-    const [selectedStatus, setSelectedStatus] = useState<string>('all');
+    const queryClient = useQueryClient();
+    const [selectedStatus, setSelectedStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-    const [showOrderDetails, setShowOrderDetails] = useState(false);
+    const [page, setPage] = useState(1);
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
-    // Mock data
-    const orders: Order[] = [
-        {
-            id: '1',
-            orderNumber: 'ORD-001',
-            customerName: 'Kamal Hassan',
-            phone: '+880 1712-345678',
-            address: 'House 12, Road 5, Dhanmondi, Dhaka-1205',
-            products: [
-                { name: 'Logitech G502 Hero', quantity: 1, price: 89 },
-                { name: 'Gaming Keyboard', quantity: 1, price: 120 },
-            ],
-            totalAmount: 209,
-            deliveryCharge: 70,
-            status: 'new',
-            paymentMethod: 'COD',
-            orderDate: '2024-01-20 10:30 AM',
-        },
-        {
-            id: '2',
-            orderNumber: 'ORD-002',
-            customerName: 'Fatima Rahman',
-            phone: '+880 1812-345678',
-            address: 'Flat 3B, Building 7, Bashundhara R/A, Dhaka',
-            products: [{ name: 'Wireless Mouse', quantity: 2, price: 45 }],
-            totalAmount: 90,
-            deliveryCharge: 70,
-            status: 'confirmed',
-            paymentMethod: 'COD',
-            orderDate: '2024-01-20 09:15 AM',
-            notes: 'Customer requested morning delivery',
-        },
-        {
-            id: '3',
-            orderNumber: 'ORD-003',
-            customerName: 'Ahmed Ali',
-            phone: '+880 1912-345678',
-            address: 'Village: Savar, District: Dhaka',
-            products: [{ name: 'Headphone Stand', quantity: 1, price: 25 }],
-            totalAmount: 25,
-            deliveryCharge: 120,
-            status: 'shipped',
-            paymentMethod: 'COD',
-            orderDate: '2024-01-19 02:45 PM',
-        },
-    ];
+    // ── Fetch orders ──────────────────────────────────────────────────────────
+    const { data, isLoading } = useQuery({
+        queryKey: ['admin-orders', selectedStatus, searchQuery, page],
+        queryFn: async () => {
+            const params: Record<string, string> = {
+                page: String(page),
+                limit: '20',
+            };
+            if (selectedStatus !== 'all') params.status = selectedStatus;
+            if (searchQuery) params.search = searchQuery;
 
-    const statusOptions = [
-        { value: 'all', label: 'All Orders', count: orders.length },
-        { value: 'new', label: 'New', count: orders.filter((o) => o.status === 'new').length },
-        {
-            value: 'confirmed',
-            label: 'Confirmed',
-            count: orders.filter((o) => o.status === 'confirmed').length,
+            const res = await axios.get(`${API_URL}/orders/admin/all`, {
+                params,
+                withCredentials: true,
+            });
+            return res.data.data;
         },
-        {
-            value: 'shipped',
-            label: 'Shipped',
-            count: orders.filter((o) => o.status === 'shipped').length,
-        },
-        {
-            value: 'delivered',
-            label: 'Delivered',
-            count: orders.filter((o) => o.status === 'delivered').length,
-        },
-        {
-            value: 'cancelled',
-            label: 'Cancelled',
-            count: orders.filter((o) => o.status === 'cancelled').length,
-        },
-    ];
-
-    const getStatusBadge = (status: string) => {
-        const badges = {
-            new: 'bg-blue-100 text-blue-700 border-blue-200',
-            confirmed: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-            shipped: 'bg-purple-100 text-purple-700 border-purple-200',
-            delivered: 'bg-green-100 text-green-700 border-green-200',
-            cancelled: 'bg-red-100 text-red-700 border-red-200',
-            returned: 'bg-gray-100 text-gray-700 border-gray-200',
-        };
-        return badges[status as keyof typeof badges] || badges.new;
-    };
-
-    const handleStatusChange = (orderId: string, newStatus: string) => {
-        console.log(`Changing order ${orderId} to ${newStatus}`);
-        // Implement status change logic
-    };
-
-    const handleViewDetails = (order: Order) => {
-        setSelectedOrder(order);
-        setShowOrderDetails(true);
-    };
-
-    const handlePrintInvoice = (order: Order) => {
-        console.log('Printing invoice for', order.orderNumber);
-        // Implement print logic
-    };
-
-    const filteredOrders = orders.filter((order) => {
-        const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
-        const matchesSearch =
-            order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            order.phone.includes(searchQuery);
-        return matchesStatus && matchesSearch;
     });
+
+    const orders = data?.orders || [];
+    const pagination = data?.pagination;
+    const totalPages = pagination?.pages || 1;
+
+    // ── Status counts (all statuses, no filter) ───────────────────────────────
+    const { data: allData } = useQuery({
+        queryKey: ['admin-orders-counts'],
+        queryFn: async () => {
+            const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
+                withCredentials: true,
+            });
+            return res.data.data.orders as any[];
+        },
+        staleTime: 30_000,
+    });
+
+    const countByStatus = (status: string) =>
+        status === 'all'
+            ? (allData?.length ?? 0)
+            : (allData?.filter((o: any) => o.status === status).length ?? 0);
+
+    // ── Update status mutation ─────────────────────────────────────────────────
+    const { mutate: updateStatus, isPending: updating } = useMutation({
+        mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
+            axios.patch(
+                `${API_URL}/orders/${orderId}/status`,
+                { status },
+                { withCredentials: true }
+            ),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-orders-counts'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+            setSelectedOrder(null);
+        },
+    });
+
+    // ── Search debounce ───────────────────────────────────────────────────────
+    let searchTimer: ReturnType<typeof setTimeout>;
+    const handleSearchChange = (val: string) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            setSearchQuery(val);
+            setPage(1);
+        }, 400);
+    };
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
             <div className="max-w-[1400px] mx-auto">
+
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Orders Management</h1>
@@ -160,287 +123,274 @@ const OrdersManagement = () => {
                 {/* Status Tabs */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-2 mb-6 overflow-x-auto">
                     <div className="flex gap-2 min-w-max">
-                        {statusOptions.map((option) => (
+                        {STATUS_OPTIONS.map((opt) => (
                             <button
-                                key={option.value}
-                                onClick={() => setSelectedStatus(option.value)}
-                                className={`px-4 py-2 rounded-md font-medium transition-all duration-200 whitespace-nowrap ${selectedStatus === option.value
+                                key={opt.value}
+                                onClick={() => { setSelectedStatus(opt.value); setPage(1); }}
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${selectedStatus === opt.value
                                         ? 'bg-[#C85A3A] text-white'
                                         : 'text-[#818B9C] hover:bg-[#F7F7F7]'
                                     }`}
                             >
-                                {option.label} ({option.count})
+                                {opt.label}
+                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${selectedStatus === opt.value
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-[#F7F7F7] text-[#818B9C]'
+                                    }`}>
+                                    {countByStatus(opt.value)}
+                                </span>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Search and Filter */}
+                {/* Search */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 mb-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#818B9C]" />
-                            <input
-                                type="text"
-                                placeholder="Search by order number, customer name, or phone..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border border-[#E4E9EE] rounded-lg focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                            />
-                        </div>
-                        <button className="flex items-center gap-2 px-6 py-3 border border-[#E4E9EE] rounded-lg hover:bg-[#F7F7F7] transition-colors">
-                            <FaFilter />
-                            <span>Filters</span>
-                        </button>
+                    <div className="relative max-w-md">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#818B9C]" />
+                        <input
+                            type="text"
+                            placeholder="Search by order #, customer, or phone..."
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-[#E4E9EE] rounded-lg text-sm focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                        />
                     </div>
                 </div>
 
-                {/* Orders Table */}
+                {/* Table */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-[#F7F7F7]">
+                            <thead className="bg-[#F7F7F7] border-b border-[#E4E9EE]">
                                 <tr>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Order #
-                                    </th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Customer
-                                    </th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Phone
-                                    </th>
-                                    <th className="text-right py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Amount
-                                    </th>
-                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Status
-                                    </th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Date
-                                    </th>
-                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#0B0F0E]">
-                                        Actions
-                                    </th>
+                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Order #</th>
+                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Customer</th>
+                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Phone</th>
+                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Items</th>
+                                    <th className="text-right py-4 px-4 text-sm font-semibold text-[#818B9C]">Total</th>
+                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Status</th>
+                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Date</th>
+                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredOrders.map((order) => (
-                                    <tr
-                                        key={order.id}
-                                        className="border-t border-[#E4E9EE] hover:bg-[#F7F7F7] transition-colors"
-                                    >
-                                        <td className="py-4 px-4">
-                                            <span className="font-semibold text-[#C85A3A]">
+                                {isLoading
+                                    ? Array.from({ length: 8 }).map((_, i) => (
+                                        <tr key={i} className="border-b border-[#E4E9EE]">
+                                            {Array.from({ length: 8 }).map((_, j) => (
+                                                <td key={j} className="py-4 px-4">
+                                                    <div className="h-4 bg-gray-100 rounded animate-pulse" />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))
+                                    : orders.map((order: any) => (
+                                        <tr
+                                            key={order._id}
+                                            className="border-b border-[#E4E9EE] hover:bg-[#F7F7F7] transition-colors"
+                                        >
+                                            <td className="py-4 px-4 font-mono text-sm text-[#818B9C]">
                                                 {order.orderNumber}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-4 text-[#0B0F0E]">
-                                            {order.customerName}
-                                        </td>
-                                        <td className="py-4 px-4 text-[#818B9C] text-sm">
-                                            {order.phone}
-                                        </td>
-                                        <td className="py-4 px-4 text-right font-semibold text-[#0B0F0E]">
-                                            ${order.totalAmount + order.deliveryCharge}
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <div className="flex justify-center">
-                                                <select
-                                                    value={order.status}
-                                                    onChange={(e) =>
-                                                        handleStatusChange(order.id, e.target.value)
-                                                    }
-                                                    className={`px-3 py-1 rounded-full text-xs font-semibold border cursor-pointer ${getStatusBadge(
-                                                        order.status
-                                                    )}`}
-                                                >
-                                                    <option value="new">New</option>
-                                                    <option value="confirmed">Confirmed</option>
-                                                    <option value="shipped">Shipped</option>
-                                                    <option value="delivered">Delivered</option>
-                                                    <option value="cancelled">Cancelled</option>
-                                                    <option value="returned">Returned</option>
-                                                </select>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-4 text-[#818B9C] text-sm">
-                                            {order.orderDate}
-                                        </td>
-                                        <td className="py-4 px-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button
-                                                    onClick={() => handleViewDetails(order)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="View Details"
-                                                >
-                                                    <FaEye />
-                                                </button>
-                                                <button
-                                                    onClick={() => handlePrintInvoice(order)}
-                                                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Print Invoice"
-                                                >
-                                                    <FaPrint />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="py-4 px-4 font-medium text-[#0B0F0E]">
+                                                {order.customer?.name}
+                                            </td>
+                                            <td className="py-4 px-4 text-[#818B9C] text-sm">
+                                                {order.customer?.phone}
+                                            </td>
+                                            <td className="py-4 px-4 text-center text-[#0B0F0E]">
+                                                {order.items?.length}
+                                            </td>
+                                            <td className="py-4 px-4 text-right font-semibold text-[#C85A3A]">
+                                                ৳{order.total}
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="flex justify-center">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(order.status)}`}>
+                                                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-4 text-sm text-[#818B9C]">
+                                                {new Date(order.orderDate || order.createdAt).toLocaleDateString('en-GB')}
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => setSelectedOrder(order)}
+                                                        className="p-2 text-[#818B9C] hover:text-[#C85A3A] hover:bg-[#FFF5F2] rounded-lg transition-all"
+                                                        title="View details"
+                                                    >
+                                                        <FaEye className="w-4 h-4" />
+                                                    </button>
+                                                    {/* Quick advance status */}
+                                                    {NEXT_STATUS[order.status] && (
+                                                        <button
+                                                            onClick={() => updateStatus({ orderId: order._id, status: NEXT_STATUS[order.status] })}
+                                                            disabled={updating}
+                                                            className="px-3 py-1.5 bg-[#C85A3A] text-white text-xs font-semibold rounded-lg hover:bg-[#A84830] transition-all disabled:opacity-50 whitespace-nowrap"
+                                                            title={`Mark as ${NEXT_STATUS[order.status]}`}
+                                                        >
+                                                            → {NEXT_STATUS[order.status].charAt(0).toUpperCase() + NEXT_STATUS[order.status].slice(1)}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
                             </tbody>
                         </table>
                     </div>
 
-                    {filteredOrders.length === 0 && (
-                        <div className="text-center py-12 text-[#818B9C]">
-                            No orders found
+                    {!isLoading && orders.length === 0 && (
+                        <div className="text-center py-16 text-[#818B9C]">
+                            <FaSearch className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                            <p>No orders found</p>
                         </div>
                     )}
                 </div>
 
-                {/* Order Details Modal */}
-                {showOrderDetails && selectedOrder && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="sticky top-0 bg-white border-b border-[#E4E9EE] p-6 flex items-center justify-between">
-                                <h2 className="text-2xl font-bold text-[#0B0F0E]">
-                                    Order Details - {selectedOrder.orderNumber}
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center gap-2 mt-6">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="px-4 py-2 border border-[#C85A3A] text-[#C85A3A] rounded-lg text-sm font-semibold hover:bg-[#C85A3A] hover:text-white transition-all disabled:opacity-40"
+                        >
+                            ← Prev
+                        </button>
+                        <span className="px-4 py-2 text-sm text-[#818B9C]">
+                            Page {page} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="px-4 py-2 border border-[#C85A3A] text-[#C85A3A] rounded-lg text-sm font-semibold hover:bg-[#C85A3A] hover:text-white transition-all disabled:opacity-40"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Order Detail Modal ──────────────────────────────────────────── */}
+            {selectedOrder && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+
+                        {/* Modal header */}
+                        <div className="sticky top-0 bg-white border-b border-[#E4E9EE] p-6 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-[#0B0F0E]">
+                                    {selectedOrder.orderNumber}
                                 </h2>
-                                <button
-                                    onClick={() => setShowOrderDetails(false)}
-                                    className="p-2 hover:bg-[#F7F7F7] rounded-lg transition-colors"
-                                >
-                                    <FaTimes className="w-5 h-5" />
-                                </button>
+                                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${getStatusBadge(selectedOrder.status)}`}>
+                                    {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => setSelectedOrder(null)}
+                                className="p-2 hover:bg-[#F7F7F7] rounded-lg transition-colors"
+                            >
+                                <FaTimes className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+
+                            {/* Customer Info */}
+                            <div>
+                                <h3 className="text-base font-semibold text-[#0B0F0E] mb-3">Customer</h3>
+                                <div className="space-y-2 bg-[#F7F7F7] p-4 rounded-lg text-sm">
+                                    <p className="font-semibold text-[#0B0F0E]">{selectedOrder.customer?.name}</p>
+                                    <div className="flex items-center gap-2 text-[#818B9C]">
+                                        <FaPhone className="text-[#C85A3A]" />
+                                        {selectedOrder.customer?.phone}
+                                    </div>
+                                    {selectedOrder.customer?.email && (
+                                        <p className="text-[#818B9C]">{selectedOrder.customer.email}</p>
+                                    )}
+                                    <div className="flex items-start gap-2 text-[#818B9C]">
+                                        <FaMapMarkerAlt className="text-[#C85A3A] mt-0.5 flex-shrink-0" />
+                                        <span>
+                                            {selectedOrder.customer?.address?.street},&nbsp;
+                                            {selectedOrder.customer?.address?.area},&nbsp;
+                                            {selectedOrder.customer?.address?.city}
+                                            {' '}({selectedOrder.customer?.address?.deliveryLocation === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka'})
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="p-6 space-y-6">
-                                {/* Customer Info */}
-                                <div>
-                                    <h3 className="text-lg font-semibold text-[#0B0F0E] mb-4">
-                                        Customer Information
-                                    </h3>
-                                    <div className="space-y-3 bg-[#F7F7F7] p-4 rounded-lg">
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-semibold text-[#0B0F0E]">
-                                                Name:
-                                            </span>
-                                            <span className="text-[#818B9C]">
-                                                {selectedOrder.customerName}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <FaPhone className="text-[#C85A3A]" />
-                                            <span className="text-[#0B0F0E]">
-                                                {selectedOrder.phone}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-start gap-3">
-                                            <FaMapMarkerAlt className="text-[#C85A3A] mt-1" />
-                                            <span className="text-[#0B0F0E]">
-                                                {selectedOrder.address}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Products */}
-                                <div>
-                                    <h3 className="text-lg font-semibold text-[#0B0F0E] mb-4">
-                                        Products
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {selectedOrder.products.map((product, index) => (
-                                            <div
-                                                key={index}
-                                                className="flex justify-between items-center p-4 bg-[#F7F7F7] rounded-lg"
-                                            >
-                                                <div>
-                                                    <p className="font-semibold text-[#0B0F0E]">
-                                                        {product.name}
-                                                    </p>
-                                                    <p className="text-sm text-[#818B9C]">
-                                                        Quantity: {product.quantity}
-                                                    </p>
-                                                </div>
-                                                <span className="font-semibold text-[#C85A3A]">
-                                                    ${product.price * product.quantity}
-                                                </span>
+                            {/* Items */}
+                            <div>
+                                <h3 className="text-base font-semibold text-[#0B0F0E] mb-3">Items</h3>
+                                <div className="space-y-2">
+                                    {selectedOrder.items?.map((item: any, i: number) => (
+                                        <div key={i} className="flex justify-between items-center p-3 bg-[#F7F7F7] rounded-lg text-sm">
+                                            <div>
+                                                <p className="font-semibold text-[#0B0F0E]">
+                                                    {item.productName || `Product ${i + 1}`}
+                                                </p>
+                                                <p className="text-[#818B9C]">Qty: {item.quantity}</p>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <span className="font-semibold text-[#C85A3A]">
+                                                ৳{item.price ? item.price * item.quantity : item.subtotal || '—'}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
+                            </div>
 
-                                {/* Order Summary */}
-                                <div>
-                                    <h3 className="text-lg font-semibold text-[#0B0F0E] mb-4">
-                                        Order Summary
-                                    </h3>
-                                    <div className="space-y-3 bg-[#F7F7F7] p-4 rounded-lg">
-                                        <div className="flex justify-between">
-                                            <span className="text-[#818B9C]">Subtotal:</span>
-                                            <span className="font-semibold">
-                                                ${selectedOrder.totalAmount}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-[#818B9C]">
-                                                Delivery Charge:
-                                            </span>
-                                            <span className="font-semibold">
-                                                ${selectedOrder.deliveryCharge}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between pt-3 border-t border-[#E4E9EE]">
-                                            <span className="font-semibold text-[#0B0F0E]">
-                                                Total (COD):
-                                            </span>
-                                            <span className="font-bold text-[#C85A3A] text-xl">
-                                                $
-                                                {selectedOrder.totalAmount +
-                                                    selectedOrder.deliveryCharge}
-                                            </span>
-                                        </div>
-                                    </div>
+                            {/* Totals */}
+                            <div className="space-y-2 bg-[#F7F7F7] p-4 rounded-lg text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-[#818B9C]">Subtotal</span>
+                                    <span className="font-semibold">৳{selectedOrder.subtotal}</span>
                                 </div>
+                                <div className="flex justify-between">
+                                    <span className="text-[#818B9C]">Delivery</span>
+                                    <span className="font-semibold">৳{selectedOrder.deliveryCharge}</span>
+                                </div>
+                                <div className="flex justify-between pt-2 border-t border-[#E4E9EE]">
+                                    <span className="font-semibold text-[#0B0F0E]">Total (COD)</span>
+                                    <span className="font-bold text-[#C85A3A] text-lg">৳{selectedOrder.total}</span>
+                                </div>
+                            </div>
 
-                                {/* Notes */}
-                                {selectedOrder.notes && (
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-[#0B0F0E] mb-4">
-                                            Notes
-                                        </h3>
-                                        <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                                            <p className="text-[#0B0F0E]">{selectedOrder.notes}</p>
-                                        </div>
-                                    </div>
-                                )}
+                            {/* Notes */}
+                            {selectedOrder.customerNotes && (
+                                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm">
+                                    <p className="font-semibold text-[#0B0F0E] mb-1">Customer Note</p>
+                                    <p className="text-[#818B9C]">{selectedOrder.customerNotes}</p>
+                                </div>
+                            )}
 
-                                {/* Actions */}
-                                <div className="flex gap-4 pt-4">
-                                    <button
-                                        onClick={() => handlePrintInvoice(selectedOrder)}
-                                        className="flex-1 px-6 py-3 bg-white border border-[#C85A3A] text-[#C85A3A] rounded-lg font-semibold hover:bg-[#C85A3A] hover:text-white transition-all"
-                                    >
-                                        <FaPrint className="inline mr-2" />
-                                        Print Invoice
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            handleStatusChange(selectedOrder.id, 'delivered');
-                                            setShowOrderDetails(false);
-                                        }}
-                                        className="flex-1 px-6 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
-                                    >
-                                        <FaCheckCircle className="inline mr-2" />
-                                        Mark as Delivered
-                                    </button>
+                            {/* Status actions */}
+                            <div>
+                                <h3 className="text-base font-semibold text-[#0B0F0E] mb-3">Update Status</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {['confirmed', 'shipped', 'delivered', 'cancelled'].map((s) => (
+                                        <button
+                                            key={s}
+                                            onClick={() => updateStatus({ orderId: selectedOrder._id, status: s })}
+                                            disabled={updating || selectedOrder.status === s || selectedOrder.status === 'delivered' || selectedOrder.status === 'cancelled'}
+                                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${selectedOrder.status === s
+                                                    ? 'bg-[#C85A3A] text-white cursor-default'
+                                                    : 'border border-[#C85A3A] text-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
+                                                }`}
+                                        >
+                                            {updating ? <FaSpinner className="animate-spin inline mr-1" /> : null}
+                                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
