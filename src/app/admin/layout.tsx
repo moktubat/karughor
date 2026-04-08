@@ -27,7 +27,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [mounted, setMounted] = useState(false);
-
+    const [authChecked, setAuthChecked] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
     const { admin } = useAuthStore();
@@ -40,13 +40,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     // 2️⃣ Run auth check AFTER mount only
     useEffect(() => {
         if (!mounted) return;
-        if (pathname === '/admin/login') return;
+
+        if (pathname === '/admin/login') {
+            setAuthChecked(true); // login page always allowed
+            return;
+        }
 
         const hasAdminToken = authService.isAdminAuthenticated();
 
         if (!hasAdminToken) {
             console.log('🔒 [AdminLayout] Not authenticated, redirecting');
             router.replace('/admin/login');
+        } else {
+            setAuthChecked(true); // only show admin content when verified
         }
     }, [mounted, pathname, router]);
 
@@ -60,6 +66,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
                 <div className="text-lg text-[#818B9C]">Loading...</div>
+            </div>
+        );
+    }
+
+    if (!authChecked && pathname !== '/admin/login') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
+                <div className="text-lg text-[#818B9C]">Verifying access...</div>
             </div>
         );
     }
@@ -123,8 +137,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all ${isActive(item.href)
-                                                        ? 'bg-[#C85A3A] text-white'
-                                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                                    ? 'bg-[#C85A3A] text-white'
+                                                    : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}
                                             >
                                                 <Icon className="w-5 h-5" />

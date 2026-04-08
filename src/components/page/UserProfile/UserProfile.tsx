@@ -460,7 +460,7 @@ const UserProfile = () => {
                                                     <div className="flex gap-6">
                                                         <div>
                                                             <p className="text-sm text-[#818B9C] mb-1">Total Amount</p>
-                                                            <p className="text-lg font-bold text-[#C85A3A]">${order.total}</p>
+                                                            <p className="text-lg font-bold text-[#C85A3A]">৳{order.total}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-sm text-[#818B9C] mb-1">Items</p>

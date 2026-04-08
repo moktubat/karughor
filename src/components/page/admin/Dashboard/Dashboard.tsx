@@ -5,11 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import Link from 'next/link';
 import {
-    FaShoppingCart, FaTk, FaMoneyBillWave,
+    FaShoppingCart, FaMoneyBillWave,
     FaBoxOpen, FaExclamationTriangle,
     FaTruck, FaCheckCircle, FaTimes,
 } from 'react-icons/fa';
-import { MdTrendingUp, MdTrendingDown } from 'react-icons/md';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 

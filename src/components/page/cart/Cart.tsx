@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaMinus, FaPlus, FaTrash, FaShoppingBag } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';

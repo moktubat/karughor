@@ -4,7 +4,22 @@ import { useEffect } from 'react';
 
 export default function BackendWarmup() {
     useEffect(() => {
-        fetch('https://karughor-backend.onrender.com/api/products?limit=1').catch(() => { });
+        const controller = new AbortController();
+
+        const timeout = setTimeout(() => {
+            controller.abort();
+            console.warn('⏱️ [Warmup] Request aborted after 10s');
+        }, 10000); // 10s max
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/products?limit=1`, {
+            signal: controller.signal,
+        })
+            .catch((err) => {
+                if (err.name !== 'AbortError') {
+                    console.warn('⚠️ [Warmup] Failed:', err);
+                }
+            })
+            .finally(() => clearTimeout(timeout));
     }, []);
 
     return null;

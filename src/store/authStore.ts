@@ -24,13 +24,10 @@ interface Admin {
 }
 
 interface AuthState {
-    // User state
     user: User | null;
     isAuthenticated: boolean;
     setUser: (user: User | null) => void;
     logout: () => void;
-
-    // Admin state
     admin: Admin | null;
     isAdminAuthenticated: boolean;
     setAdmin: (admin: Admin | null) => void;
@@ -40,17 +37,25 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
-            // User
             user: null,
             isAuthenticated: false,
             setUser: (user) => set({ user, isAuthenticated: !!user }),
-            logout: () => set({ user: null, isAuthenticated: false }),
+            logout: () => {
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('user_token');
+                }
+                set({ user: null, isAuthenticated: false });
+            },
 
-            // Admin
             admin: null,
             isAdminAuthenticated: false,
             setAdmin: (admin) => set({ admin, isAdminAuthenticated: !!admin }),
-            adminLogout: () => set({ admin: null, isAdminAuthenticated: false }),
+            adminLogout: () => {
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('admin_token');
+                }
+                set({ admin: null, isAdminAuthenticated: false });
+            },
         }),
         {
             name: 'auth-storage',

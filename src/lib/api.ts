@@ -53,11 +53,21 @@ api.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      console.warn('⚠️ [API] 401 Unauthorized');
       if (typeof window !== 'undefined') {
-        const isAdminRoute = window.location.pathname.startsWith('/admin');
-        const redirectUrl = isAdminRoute ? '/admin/login' : '/login';
-        window.location.href = redirectUrl;
+        const path = window.location.pathname;
+
+        // 🚫 Prevent infinite redirect loop
+        const isLoginPage = path === '/login' || path === '/admin/login';
+
+        if (!isLoginPage) {
+          const isAdminRoute = path.startsWith('/admin');
+          const redirectUrl = isAdminRoute ? '/admin/login' : '/login';
+
+          console.warn('⚠️ Redirecting due to 401 →', redirectUrl);
+          window.location.href = redirectUrl;
+        } else {
+          console.warn('⚠️ 401 on login page — skipping redirect');
+        }
       }
     }
 

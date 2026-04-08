@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import {
-    FaHeart, FaRegHeart, FaShoppingCart, FaStar,
+    FaShoppingCart, FaStar,
     FaChevronLeft, FaChevronRight, FaCheck,
 } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';
@@ -172,12 +172,19 @@ const ProductDetails: React.FC = () => {
         ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
         : null;
 
-    const ProductDetailsTabs: React.FC<{
+    type ProductDetailsTabsProps = {
         specifications: Record<string, string>;
         inTheBox: string[];
         careInstructions: string[];
         highlights: string[];
-    }> = ({ specifications, inTheBox, careInstructions, highlights }) => {
+    };
+
+    const ProductDetailsTabs: React.FC<ProductDetailsTabsProps> = ({
+        specifications,
+        inTheBox,
+        careInstructions,
+        highlights,
+    }) => {
         const tabs = [
             { id: 'specs', label: 'Specifications', show: Object.keys(specifications).length > 0 },
             { id: 'inbox', label: 'In The Box', show: inTheBox.length > 0 },
@@ -192,8 +199,6 @@ const ProductDetails: React.FC = () => {
                 <h2 className="text-2xl md:text-3xl font-semibold text-[#0B0F0E] mb-6">
                     Product Details
                 </h2>
-
-                {/* Tab Bar */}
                 <div className="flex gap-1 border-b border-[#E4E9EE] mb-0">
                     {tabs.map(tab => (
                         <button
@@ -208,33 +213,17 @@ const ProductDetails: React.FC = () => {
                         </button>
                     ))}
                 </div>
-
-                {/* Tab Content */}
                 <div className="border border-[#E4E9EE] rounded-b-xl rounded-tr-xl bg-white p-6 md:p-8">
-
-                    {/* Specifications */}
                     {activeTab === 'specs' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
                             {Object.entries(specifications).map(([key, val], i) => (
-                                <div
-                                    key={key}
-                                    className={`flex items-start gap-4 py-4 ${i < Object.keys(specifications).length - (Object.keys(specifications).length % 2 === 0 ? 2 : 1)
-                                        ? 'border-b border-[#F0F0F0]'
-                                        : ''
-                                        }`}
-                                >
-                                    <span className="text-sm text-[#818B9C] w-36 flex-shrink-0 pt-0.5">
-                                        {key.replace(/_/g, ' ')}
-                                    </span>
-                                    <span className="text-sm font-semibold text-[#0B0F0E]">
-                                        {val}
-                                    </span>
+                                <div key={key} className={`flex items-start gap-4 py-4 ${i < Object.keys(specifications).length - (Object.keys(specifications).length % 2 === 0 ? 2 : 1) ? 'border-b border-[#F0F0F0]' : ''}`}>
+                                    <span className="text-sm text-[#818B9C] w-36 flex-shrink-0 pt-0.5">{key.replace(/_/g, ' ')}</span>
+                                    <span className="text-sm font-semibold text-[#0B0F0E]">{val}</span>
                                 </div>
                             ))}
                         </div>
                     )}
-
-                    {/* In The Box */}
                     {activeTab === 'inbox' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {inTheBox.map((item, i) => (
@@ -247,8 +236,6 @@ const ProductDetails: React.FC = () => {
                             ))}
                         </div>
                     )}
-
-                    {/* Care Instructions */}
                     {activeTab === 'care' && (
                         <div className="flex flex-col gap-3">
                             {careInstructions.map((item, i) => (
@@ -261,8 +248,6 @@ const ProductDetails: React.FC = () => {
                             ))}
                         </div>
                     )}
-
-                    {/* Highlights */}
                     {activeTab === 'highlights' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {highlights.map((item, i) => (
@@ -470,6 +455,7 @@ const ProductDetails: React.FC = () => {
                 {/* Product Details */}
                 {(Object.keys(specifications).length > 0 || inTheBox.length > 0 || careInstructions.length > 0 || highlights.length > 0) && (
                     <ProductDetailsTabs
+                        key={product._id}
                         specifications={specifications}
                         inTheBox={inTheBox}
                         careInstructions={careInstructions}

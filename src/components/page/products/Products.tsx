@@ -174,10 +174,8 @@ const Products = () => {
                                 onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                                 className="py-2.5 px-4 rounded-lg border border-[#E4E9EE] bg-white cursor-pointer focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 text-sm"
                             >
-                                <option value="-createdAt">Relevant Products</option>
                                 <option value="price">Price: Low to High</option>
                                 <option value="-price">Price: High to Low</option>
-                                <option value="-createdAt">Newest First</option>
                             </select>
                         </div>
                     </div>

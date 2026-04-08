@@ -10,7 +10,7 @@ import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { useCartStore } from '@/store/cartStore';
 
 interface ProductCardProps {
-    id: number;
+    id: string;
     name: string;
     image: string;
     originalPrice?: string;
@@ -18,7 +18,7 @@ interface ProductCardProps {
     discount?: string;
     rating?: string;
     isLiked?: boolean;
-    onToggleLike?: (id: number, e: React.MouseEvent) => void;
+    onToggleLike?: (id: string, e: React.MouseEvent) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -46,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         e.preventDefault();
         e.stopPropagation();
         addItem({
-            id: String(id),
+            id: id,
             name,
             image,
             price: Number(salePrice.replace(/[^\d.]/g, '')),

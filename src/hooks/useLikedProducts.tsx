@@ -4,12 +4,12 @@ import { useState, useCallback, useEffect } from 'react';
 
 export const useLikedProducts = () => {
   // Initialize liked products from localStorage if available
-  const [likedProducts, setLikedProducts] = useState<Set<number>>(() => {
+  const [likedProducts, setLikedProducts] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('likedProducts');
       if (stored) {
         try {
-          const parsed: number[] = JSON.parse(stored);
+          const parsed: string[] = JSON.parse(stored);
           return new Set(parsed);
         } catch {
           return new Set();
@@ -27,7 +27,7 @@ export const useLikedProducts = () => {
   }, [likedProducts]);
 
   // Toggle like/unlike a product
-  const toggleLike = useCallback((productId: number, e?: React.MouseEvent) => {
+  const toggleLike = useCallback((productId: string, e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
 
@@ -44,7 +44,7 @@ export const useLikedProducts = () => {
 
   // Check if a product is liked
   const isLiked = useCallback(
-    (productId: number) => likedProducts.has(productId),
+    (productId: string) => likedProducts.has(productId),
     [likedProducts]
   );
 
