@@ -2,61 +2,32 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { authService, type AdminLoginData } from '@/lib/authService';
 
 const AdminLogin = () => {
-    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<AdminLoginData>({
-        defaultValues: {
-            email: '',
-            password: '',
-        },
+    const { register, handleSubmit, formState: { errors } } = useForm<AdminLoginData>({
+        defaultValues: { email: '', password: '' },
     });
 
-    const onSubmit = async (data: AdminLoginData) => {
-        console.log('🟢 Admin Login Form Submitted', {
-            email: data.email,
-            timestamp: new Date().toISOString()
-        });
 
+    const onSubmit = async (data: AdminLoginData) => {
         try {
             setLoading(true);
             setError('');
-
-            console.log('🟡 Calling authService.adminLogin...');
             const response = await authService.adminLogin(data);
-
-            console.log('🟢 Admin Login Response Received', {
-                success: response.success,
-                hasAdmin: !!response.data?.admin,
-            });
-
             if (response.success) {
-                console.log('🟡 Login successful, waiting for cookie...');
-
-                // Wait for cookie to be set
                 await new Promise(resolve => setTimeout(resolve, 200));
-
-                console.log('🔄 Redirecting to /admin/dashboard');
-
-                // Force hard navigation to ensure middleware runs
                 window.location.href = '/admin/dashboard';
             } else {
                 throw new Error('Login failed');
             }
         } catch (err: any) {
-            console.error('❌ Admin Login Error:', err);
             setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
@@ -66,7 +37,6 @@ const AdminLogin = () => {
     return (
         <div className="bg-[#F7F7F7] w-full min-h-screen flex items-center justify-center py-12 px-4">
             <div className="max-w-md w-full">
-                {/* Admin Badge */}
                 <div className="flex justify-center mb-8">
                     <div className="bg-[#C85A3A] text-white px-6 py-3 rounded-full flex items-center gap-2">
                         <FaShieldAlt className="w-5 h-5" />
@@ -74,77 +44,50 @@ const AdminLogin = () => {
                     </div>
                 </div>
 
-                {/* Login Form */}
                 <div className="bg-white border border-[#E4E9EE] rounded-lg p-8 md:p-10 shadow-lg">
-                    <h1 className="text-3xl md:text-4xl font-semibold text-[#0B0F0E] mb-2 text-center">
-                        Admin Login
-                    </h1>
-                    <p className="text-center text-[#818B9C] mb-8">
-                        Access your admin dashboard
-                    </p>
+                    <h1 className="text-3xl md:text-4xl font-semibold text-[#0B0F0E] mb-2 text-center">Admin Login</h1>
+                    <p className="text-center text-[#818B9C] mb-8">Access your admin dashboard</p>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                            {error}
-                        </div>
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
                     )}
 
                     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-                        {/* Email */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-base font-medium text-[#0B0F0E]">
-                                Email Address
-                            </label>
+                            <label className="text-base font-medium text-[#0B0F0E]">Email Address</label>
                             <input
                                 type="email"
                                 placeholder="admin@karughor.com"
                                 {...register('email', {
                                     required: 'Email is required',
-                                    pattern: {
-                                        value: /^\S+@\S+$/i,
-                                        message: 'Invalid email address',
-                                    },
+                                    pattern: { value: /^\S+@\S+$/i, message: 'Invalid email address' },
                                 })}
                                 className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                             />
-                            {errors.email && (
-                                <span className="text-sm text-red-500">
-                                    {errors.email.message}
-                                </span>
-                            )}
+                            {errors.email && <span className="text-sm text-red-500">{errors.email.message}</span>}
                         </div>
 
-                        {/* Password */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-base font-medium text-[#0B0F0E]">
-                                Password
-                            </label>
+                            <label className="text-base font-medium text-[#0B0F0E]">Password</label>
                             <div className="relative">
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Enter your password"
-                                    {...register('password', {
-                                        required: 'Password is required',
-                                    })}
+                                    {...register('password', { required: 'Password is required' })}
                                     className="w-full px-4 py-3 pr-12 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    onClick={() => setShowPassword(p => !p)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818B9C] hover:text-[#C85A3A]"
                                     aria-label="Toggle password visibility"
                                 >
                                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                                 </button>
                             </div>
-                            {errors.password && (
-                                <span className="text-sm text-red-500">
-                                    {errors.password.message}
-                                </span>
-                            )}
+                            {errors.password && <span className="text-sm text-red-500">{errors.password.message}</span>}
                         </div>
 
-                        {/* Submit */}
                         <button
                             type="submit"
                             disabled={loading}
@@ -154,12 +97,8 @@ const AdminLogin = () => {
                         </button>
                     </form>
 
-                    {/* Back to Store */}
                     <div className="text-center mt-6">
-                        <Link
-                            href="/"
-                            className="text-base text-[#818B9C] hover:text-[#C85A3A] transition-colors"
-                        >
+                        <Link href="/" className="text-base text-[#818B9C] hover:text-[#C85A3A] transition-colors">
                             ← Back to Store
                         </Link>
                     </div>

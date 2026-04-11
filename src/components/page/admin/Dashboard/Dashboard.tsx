@@ -52,7 +52,7 @@ const Dashboard = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['admin-dashboard'],
         queryFn: () => fetcher(`${API_URL}/admin/dashboard/stats`),
-        refetchInterval: 60_000, // refresh every 60s
+        refetchInterval: 60_000,
     });
 
     const stats = data?.stats;
@@ -101,14 +101,11 @@ const Dashboard = () => {
     return (
         <div className="bg-[#F7F7F7] min-h-screen ps-4 py-4">
             <div className="max-w-300 mx-auto">
-
-                {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Dashboard</h1>
-                    <p className="text-[#818B9C]">Welcome back! Here's what's happening today.</p>
+                    <p className="text-[#818B9C]">Welcome back! Here&apos;s what&apos;s happening today.</p>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
                     {isLoading
                         ? Array.from({ length: 5 }).map((_, i) => <StatSkeleton key={i} />)
@@ -128,10 +125,7 @@ const Dashboard = () => {
                         ))}
                 </div>
 
-                {/* Recent Orders + Today Summary */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-
-                    {/* Recent Orders */}
                     <div className="xl:col-span-2 bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-[#0B0F0E]">Recent Orders</h2>
@@ -150,9 +144,7 @@ const Dashboard = () => {
                                 ))}
                             </div>
                         ) : recentOrders.length === 0 ? (
-                            <div className="text-center py-12 text-[#818B9C]">
-                                No orders yet
-                            </div>
+                            <div className="text-center py-12 text-[#818B9C]">No orders yet</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full">
@@ -199,7 +191,6 @@ const Dashboard = () => {
                         )}
                     </div>
 
-                    {/* Today's Summary */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Today's Summary</h2>
 
@@ -214,39 +205,28 @@ const Dashboard = () => {
                                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                                     <div>
                                         <p className="text-sm text-[#818B9C] mb-1">New Orders</p>
-                                        <p className="text-2xl font-bold text-blue-600">
-                                            {stats?.todayOrders ?? 0}
-                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600">{stats?.todayOrders ?? 0}</p>
                                     </div>
                                     <FaShoppingCart className="w-8 h-8 text-blue-600" />
                                 </div>
-
                                 <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
                                     <div>
                                         <p className="text-sm text-[#818B9C] mb-1">Delivered</p>
-                                        <p className="text-2xl font-bold text-green-600">
-                                            {stats?.deliveredOrders ?? 0}
-                                        </p>
+                                        <p className="text-2xl font-bold text-green-600">{stats?.deliveredOrders ?? 0}</p>
                                     </div>
                                     <FaCheckCircle className="w-8 h-8 text-green-600" />
                                 </div>
-
                                 <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg">
                                     <div>
                                         <p className="text-sm text-[#818B9C] mb-1">Total Revenue</p>
-                                        <p className="text-2xl font-bold text-orange-600">
-                                            ৳{stats?.totalRevenue?.toLocaleString() ?? 0}
-                                        </p>
+                                        <p className="text-2xl font-bold text-orange-600">৳{stats?.totalRevenue?.toLocaleString() ?? 0}</p>
                                     </div>
                                     <FaMoneyBillWave className="w-8 h-8 text-orange-600" />
                                 </div>
-
                                 <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
                                     <div>
                                         <p className="text-sm text-[#818B9C] mb-1">Low Stock Items</p>
-                                        <p className="text-2xl font-bold text-red-600">
-                                            {stats?.lowStockProducts ?? 0}
-                                        </p>
+                                        <p className="text-2xl font-bold text-red-600">{stats?.lowStockProducts ?? 0}</p>
                                     </div>
                                     <FaExclamationTriangle className="w-8 h-8 text-red-600" />
                                 </div>

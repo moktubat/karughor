@@ -9,7 +9,7 @@ export default function BackendWarmup() {
         const timeout = setTimeout(() => {
             controller.abort();
             console.warn('⏱️ [Warmup] Request aborted after 10s');
-        }, 10000); // 10s max
+        }, 10000);
 
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/products?limit=1`, {
             signal: controller.signal,

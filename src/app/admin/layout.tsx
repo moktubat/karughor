@@ -32,36 +32,31 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const router = useRouter();
     const { admin } = useAuthStore();
 
-    // 1️⃣ Mark component as mounted (hydration-safe)
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    // 2️⃣ Run auth check AFTER mount only
     useEffect(() => {
         if (!mounted) return;
 
         if (pathname === '/admin/login') {
-            setAuthChecked(true); // login page always allowed
+            setAuthChecked(true);
             return;
         }
 
         const hasAdminToken = authService.isAdminAuthenticated();
 
         if (!hasAdminToken) {
-            console.log('🔒 [AdminLayout] Not authenticated, redirecting');
             router.replace('/admin/login');
         } else {
-            setAuthChecked(true); // only show admin content when verified
+            setAuthChecked(true);
         }
     }, [mounted, pathname, router]);
 
-    // 3️⃣ Do NOT show layout on login page
     if (pathname === '/admin/login') {
         return <>{children}</>;
     }
 
-    // 4️⃣ Block rendering until mounted (SSR + Client match)
     if (!mounted) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
@@ -70,7 +65,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         );
     }
 
-    if (!authChecked && pathname !== '/admin/login') {
+    if (!authChecked) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
                 <div className="text-lg text-[#818B9C]">Verifying access...</div>
@@ -102,7 +97,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
     return (
         <div className="w-full min-h-screen bg-[#F7F7F7]">
-            {/* Mobile Header */}
             <div className="lg:hidden bg-white border-b border-[#E4E9EE] px-4 py-4 flex items-center justify-between sticky top-0 z-50">
                 <h1 className="text-xl font-bold text-[#0B0F0E]">Admin Panel</h1>
                 <button
@@ -113,8 +107,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </button>
             </div>
 
-            <div className="flex max-w-300 mx-auto">
-                {/* Sidebar */}
+            <div className="flex max-w-350 mx-auto">
                 <aside
                     className={`fixed lg:sticky top-0 left-0 h-screen bg-white border-r border-[#E4E9EE] transition-transform duration-300 z-40 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
                         } w-56`}
@@ -137,8 +130,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all ${isActive(item.href)
-                                                    ? 'bg-[#C85A3A] text-white'
-                                                    : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                                        ? 'bg-[#C85A3A] text-white'
+                                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}
                                             >
                                                 <Icon className="w-5 h-5" />

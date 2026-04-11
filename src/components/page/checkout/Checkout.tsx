@@ -8,6 +8,8 @@ import { FaMapMarkerAlt, FaPhone, FaUser, FaEnvelope, FaSpinner } from 'react-ic
 import axios from 'axios';
 import Link from 'next/link';
 import { useCartStore } from '@/store/cartStore';
+import { useQuery } from '@tanstack/react-query';
+import Image from 'next/image';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
@@ -22,37 +24,43 @@ interface CheckoutFormValues {
     notes?: string;
 }
 
-const DELIVERY_CHARGES: Record<string, number> = {
-    inside_dhaka: 70,
-    outside_dhaka: 120,
-};
+const inputCls = "px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20";
 
 const Checkout = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { items, clearCart } = useCartStore();
-
-    const defaultDelivery =
-        (searchParams.get('delivery') as 'inside_dhaka' | 'outside_dhaka') || 'inside_dhaka';
-
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const {
-        register,
-        handleSubmit,
-        watch,
-        formState: { errors },
-    } = useForm<CheckoutFormValues>({
+    const rawDelivery = searchParams.get('delivery');
+    const defaultDelivery: 'inside_dhaka' | 'outside_dhaka' =
+        rawDelivery === 'inside_dhaka' || rawDelivery === 'outside_dhaka'
+            ? rawDelivery
+            : 'inside_dhaka';
+
+    const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutFormValues>({
         defaultValues: { deliveryLocation: defaultDelivery },
     });
 
+    const { data: settingsData } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
+            const res = await axios.get(`${API_URL}/settings`);
+            return res.data.data.settings;
+        },
+        staleTime: 5 * 60_000,
+    });
+
     const deliveryLocation = watch('deliveryLocation');
+    const DELIVERY_CHARGES: Record<string, number> = {
+        inside_dhaka: settingsData?.insideDhakaCharge ?? 70,
+        outside_dhaka: settingsData?.outsideDhakaCharge ?? 120,
+    };
     const deliveryCharge = DELIVERY_CHARGES[deliveryLocation] || 70;
     const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal + deliveryCharge;
 
-    // Redirect if cart is empty
     if (items.length === 0) {
         return (
             <div className="bg-white w-full min-h-screen flex flex-col items-center justify-center gap-6 px-4">
@@ -70,7 +78,7 @@ const Checkout = () => {
         setLoading(true);
         setError('');
         try {
-            const orderPayload = {
+            const res = await axios.post(`${API_URL}/orders/guest`, {
                 customer: {
                     name: data.fullName,
                     phone: data.phone,
@@ -82,32 +90,15 @@ const Checkout = () => {
                         deliveryLocation: data.deliveryLocation,
                     },
                 },
-                items: items.map((i) => ({
-                    productId: i.id,
-                    quantity: i.quantity,
-                })),
+                items: items.map(i => ({ productId: i.id, quantity: i.quantity })),
                 notes: data.notes || '',
-            };
+            }, { withCredentials: true });
 
-            // Logged-in users → POST /api/orders
-            // Guests          → POST /api/orders/guest
-            const endpoint = `${API_URL}/orders/guest`;
-
-            const res = await axios.post(endpoint, orderPayload, {
-                withCredentials: true,
-            });
-
-            const orderId = res.data?.data?.order?._id
-                || res.data?.data?._id
-                || 'N/A';
+            const orderId = res.data?.data?.order?._id || res.data?.data?._id || 'N/A';
             clearCart();
             router.push(`/order-success?orderId=${orderId}`);
         } catch (err: any) {
-            setError(
-                err.response?.data?.error?.message ||
-                err.response?.data?.message ||
-                'Failed to place order. Please try again.'
-            );
+            setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to place order. Please try again.');
             setLoading(false);
         }
     };
@@ -115,8 +106,6 @@ const Checkout = () => {
     return (
         <div className="bg-white w-full min-h-screen py-12 px-4">
             <div className="max-w-300 mx-auto">
-
-                {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap mb-8">
                     <Link href="/" className="text-[#C85A3A] hover:underline">Home</Link>
                     <MdKeyboardArrowRight />
@@ -128,40 +117,24 @@ const Checkout = () => {
                 <h1 className="text-3xl md:text-4xl font-bold text-[#0B0F0E] mb-8">Checkout</h1>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                        {error}
-                    </div>
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
                 )}
 
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
                         {/* Left — Delivery Info */}
                         <div className="lg:col-span-2">
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                                <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">
-                                    Delivery Information
-                                </h2>
-
+                                <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">Delivery Information</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                                    {/* Full Name */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaUser className="text-[#C85A3A]" /> Full Name
                                         </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Your full name"
-                                            {...register('fullName', { required: 'Name is required' })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {errors.fullName && (
-                                            <span className="text-sm text-red-500">{errors.fullName.message}</span>
-                                        )}
+                                        <input type="text" placeholder="Your full name" {...register('fullName', { required: 'Name is required' })} className={inputCls} />
+                                        {errors.fullName && <span className="text-sm text-red-500">{errors.fullName.message}</span>}
                                     </div>
 
-                                    {/* Phone */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaPhone className="text-[#C85A3A]" /> Phone Number
@@ -172,99 +145,58 @@ const Checkout = () => {
                                             {...register('phone', {
                                                 required: 'Phone is required',
                                                 validate: (val) => {
-                                                    // Strip +880 or 880 prefix if present
                                                     const stripped = val.replace(/^(\+?880)/, '');
                                                     return /^01[3-9]\d{8}$/.test(stripped) || 'Enter a valid BD number (e.g. 01712345678)';
                                                 },
                                             })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            className={inputCls}
                                         />
-                                        {errors.phone && (
-                                            <span className="text-sm text-red-500">{errors.phone.message}</span>
-                                        )}
+                                        {errors.phone && <span className="text-sm text-red-500">{errors.phone.message}</span>}
                                     </div>
 
-                                    {/* Email */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaEnvelope className="text-[#C85A3A]" />
-                                            Email <span className="text-[#818B9C] text-sm">(Optional)</span>
+                                            <FaEnvelope className="text-[#C85A3A]" /> Email <span className="text-[#818B9C] text-sm">(Optional)</span>
                                         </label>
-                                        <input
-                                            type="email"
-                                            placeholder="your@email.com"
-                                            {...register('email')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
+                                        <input type="email" placeholder="your@email.com" {...register('email')} className={inputCls} />
                                     </div>
 
-                                    {/* Delivery Location */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaMapMarkerAlt className="text-[#C85A3A]" /> Delivery Location
                                         </label>
                                         <select
                                             {...register('deliveryLocation', { required: true })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base font-medium text-[#0B0F0E] bg-white cursor-pointer focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                            className={`${inputCls} font-medium text-[#0B0F0E] bg-white cursor-pointer`}
                                         >
-                                            <option value="inside_dhaka">Inside Dhaka — ৳70</option>
-                                            <option value="outside_dhaka">Outside Dhaka — ৳120</option>
+                                            <option value="inside_dhaka">Inside Dhaka — ৳{DELIVERY_CHARGES.inside_dhaka}</option>
+                                            <option value="outside_dhaka">Outside Dhaka — ৳{DELIVERY_CHARGES.outside_dhaka}</option>
                                         </select>
                                     </div>
 
-                                    {/* City */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">City</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g., Dhaka"
-                                            {...register('city', { required: 'City is required' })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {errors.city && (
-                                            <span className="text-sm text-red-500">{errors.city.message}</span>
-                                        )}
+                                        <input type="text" placeholder="e.g., Dhaka" {...register('city', { required: 'City is required' })} className={inputCls} />
+                                        {errors.city && <span className="text-sm text-red-500">{errors.city.message}</span>}
                                     </div>
 
-                                    {/* Area */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">Area / Thana</label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g., Dhanmondi"
-                                            {...register('area', { required: 'Area is required' })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {errors.area && (
-                                            <span className="text-sm text-red-500">{errors.area.message}</span>
-                                        )}
+                                        <input type="text" placeholder="e.g., Dhanmondi" {...register('area', { required: 'Area is required' })} className={inputCls} />
+                                        {errors.area && <span className="text-sm text-red-500">{errors.area.message}</span>}
                                     </div>
 
-                                    {/* Full Address */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">Full Address</label>
-                                        <textarea
-                                            rows={3}
-                                            placeholder="House/Flat no., Road, Block..."
-                                            {...register('address', { required: 'Address is required' })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none"
-                                        />
-                                        {errors.address && (
-                                            <span className="text-sm text-red-500">{errors.address.message}</span>
-                                        )}
+                                        <textarea rows={3} placeholder="House/Flat no., Road, Block..." {...register('address', { required: 'Address is required' })} className={`${inputCls} resize-none`} />
+                                        {errors.address && <span className="text-sm text-red-500">{errors.address.message}</span>}
                                     </div>
 
-                                    {/* Notes */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">
                                             Order Notes <span className="text-[#818B9C] text-sm">(Optional)</span>
                                         </label>
-                                        <textarea
-                                            rows={2}
-                                            placeholder="Any special instructions..."
-                                            {...register('notes')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none"
-                                        />
+                                        <textarea rows={2} placeholder="Any special instructions..." {...register('notes')} className={`${inputCls} resize-none`} />
                                     </div>
                                 </div>
                             </div>
@@ -274,30 +206,20 @@ const Checkout = () => {
                         <div className="lg:col-span-1">
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 sticky top-6">
                                 <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">Order Summary</h2>
-
-                                {/* Products */}
                                 <div className="space-y-4 mb-6 pb-6 border-b border-[#E4E9EE]">
                                     {items.map((item) => (
                                         <div key={item.id} className="flex gap-3">
                                             <div className="w-14 h-14 bg-[#F6F6F6] rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <img
-                                                    src={item.image}
-                                                    alt={item.name}
-                                                    className="w-10 h-10 object-contain"
-                                                />
+                                                <Image src={item.image} alt={item.name} width={40} height={40} className="object-contain" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-semibold text-[#0B0F0E] line-clamp-1">{item.name}</p>
                                                 <p className="text-xs text-[#818B9C]">Qty: {item.quantity}</p>
-                                                <p className="text-sm font-semibold text-[#C85A3A]">
-                                                    ৳{item.price * item.quantity}
-                                                </p>
+                                                <p className="text-sm font-semibold text-[#C85A3A]">৳{item.price * item.quantity}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Pricing */}
                                 <div className="space-y-3 mb-4">
                                     <div className="flex justify-between text-base">
                                         <span className="text-[#818B9C]">Subtotal</span>
@@ -308,14 +230,10 @@ const Checkout = () => {
                                         <span className="font-semibold text-[#0B0F0E]">৳{deliveryCharge}</span>
                                     </div>
                                 </div>
-
-                                {/* Total */}
                                 <div className="flex justify-between items-center py-4 border-t border-[#E4E9EE] mb-4">
                                     <span className="text-xl font-semibold text-[#0B0F0E]">Total (COD)</span>
                                     <span className="text-2xl font-bold text-[#C85A3A]">৳{total}</span>
                                 </div>
-
-                                {/* Payment method */}
                                 <div className="bg-[#F7F7F7] p-4 rounded-lg mb-6">
                                     <p className="text-sm font-semibold text-[#0B0F0E] mb-2">Payment Method</p>
                                     <div className="flex items-center gap-2">
@@ -325,23 +243,13 @@ const Checkout = () => {
                                         <span className="text-[#0B0F0E] font-medium text-sm">Cash on Delivery (COD)</span>
                                     </div>
                                 </div>
-
-                                {/* Place Order */}
                                 <button
                                     type="submit"
                                     disabled={loading}
                                     className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
-                                    {loading ? (
-                                        <>
-                                            <FaSpinner className="animate-spin" />
-                                            Placing Order...
-                                        </>
-                                    ) : (
-                                        'Place Order'
-                                    )}
+                                    {loading ? <><FaSpinner className="animate-spin" /> Placing Order...</> : 'Place Order'}
                                 </button>
-
                                 <p className="text-xs text-center text-[#818B9C] mt-4">
                                     By placing your order you agree to our terms and conditions
                                 </p>

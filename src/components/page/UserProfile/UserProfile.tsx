@@ -6,15 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    FaUser,
-    FaPhone,
-    FaEnvelope,
-    FaMapMarkerAlt,
-    FaCamera,
-    FaEdit,
-    FaBox,
-    FaHeart,
-    FaLock,
+    FaUser, FaPhone, FaEnvelope, FaMapMarkerAlt,
+    FaCamera, FaEdit, FaBox, FaHeart, FaLock,
 } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';
 import { useAuthStore } from '@/store/authStore';
@@ -38,41 +31,55 @@ interface PasswordFormValues {
     confirmPassword: string;
 }
 
+type Tab = 'profile' | 'orders' | 'wishlist' | 'password';
+
+const STATUS_BADGES: Record<string, string> = {
+    new: 'bg-blue-100 text-blue-700',
+    confirmed: 'bg-yellow-100 text-yellow-700',
+    shipped: 'bg-purple-100 text-purple-700',
+    delivered: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+};
+
+const NAV_ITEMS = [
+    { id: 'profile', label: 'My Profile', icon: FaUser },
+    { id: 'orders', label: 'My Orders', icon: FaBox },
+    { id: 'wishlist', label: 'Wishlist', icon: FaHeart },
+    { id: 'password', label: 'Change Password', icon: FaLock },
+] as const;
+
+const inputCls = "px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20";
+const disabledInputCls = `${inputCls} disabled:bg-[#F7F7F7] disabled:cursor-not-allowed`;
+
 const UserProfile = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user, setUser, logout: logoutStore } = useAuthStore();
 
-    const tabParam = searchParams.get('tab') as 'profile' | 'orders' | 'wishlist' | 'password' | null;
-    const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'wishlist' | 'password'>(
-        tabParam || 'profile'
-    );
+    const tabParam = searchParams.get('tab') as Tab | null;
+    const [activeTab, setActiveTab] = useState<Tab>(tabParam || 'profile');
     const [isEditing, setIsEditing] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // Fetch user profile
     const { data: profileData, isLoading: profileLoading } = useQuery({
         queryKey: ['userProfile'],
         queryFn: userService.getProfile,
         enabled: !!user,
     });
 
-    // Fetch user orders
     const { data: ordersData, isLoading: ordersLoading } = useQuery({
         queryKey: ['userOrders'],
         queryFn: () => userService.getUserOrders(1, 10),
         enabled: activeTab === 'orders' && !!user,
     });
 
-    // Fetch wishlist
     const { data: wishlistData, isLoading: wishlistLoading } = useQuery({
         queryKey: ['userWishlist'],
         queryFn: userService.getWishlist,
         enabled: activeTab === 'wishlist' && !!user,
     });
 
-    // Update profile mutation
     const updateProfileMutation = useMutation({
         mutationFn: userService.updateProfile,
         onSuccess: (data) => {
@@ -86,67 +93,31 @@ const UserProfile = () => {
         },
     });
 
-    // Form for profile - Initialize properly
-    const {
-        register,
-        handleSubmit,
-        reset: resetProfile,
-        formState: { errors },
-    } = useForm<ProfileFormValues>({
-        defaultValues: {
-            fullName: '',
-            phone: '',
-            email: '',
-            address: '',
-            city: '',
-            area: '',
-        },
+    const { register, handleSubmit, reset: resetProfile, formState: { errors } } = useForm<ProfileFormValues>({
+        defaultValues: { fullName: '', phone: '', email: '', address: '', city: '', area: '' },
     });
 
-    // Update form when profile data loads
     useEffect(() => {
-        if (profileData?.data?.user) {
-            const userData = profileData.data.user;
-            resetProfile({
-                fullName: userData.fullName || '',
-                phone: userData.phone || '',
-                email: userData.email || '',
-                address: userData.address?.street || '',
-                city: userData.address?.city || '',
-                area: userData.address?.area || '',
-            });
-        } else if (user) {
-            // Fallback to auth store user
-            resetProfile({
-                fullName: user.fullName || '',
-                phone: user.phone || '',
-                email: user.email || '',
-                address: user.address?.street || '',
-                city: user.address?.city || '',
-                area: user.address?.area || '',
-            });
-        }
+        const src = profileData?.data?.user || user;
+        if (!src) return;
+        resetProfile({
+            fullName: src.fullName || '',
+            phone: (src as any).phone || '',
+            email: src.email || '',
+            address: src.address?.street || '',
+            city: src.address?.city || '',
+            area: src.address?.area || '',
+        });
     }, [profileData, user, resetProfile]);
 
-    const {
-        register: registerPassword,
-        handleSubmit: handleSubmitPassword,
-        watch,
-        reset: resetPassword,
-        formState: { errors: passwordErrors },
-    } = useForm<PasswordFormValues>();
-
+    const { register: registerPassword, handleSubmit: handleSubmitPassword, watch, reset: resetPassword, formState: { errors: passwordErrors } } = useForm<PasswordFormValues>();
     const newPassword = watch('newPassword');
 
     const onSubmitProfile = (data: ProfileFormValues) => {
         const updateData: UpdateProfileData = {
             fullName: data.fullName,
             email: data.email,
-            address: {
-                street: data.address,
-                area: data.area,
-                city: data.city,
-            },
+            address: { street: data.address, area: data.area, city: data.city },
         };
         updateProfileMutation.mutate(updateData);
     };
@@ -165,36 +136,16 @@ const UserProfile = () => {
         }
     };
 
-    // Fixed logout handler
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
-
-            // Logout and clear state
             await authService.logout();
             logoutStore();
-
-            // Force reload to home page
-            window.location.href = '/';
-        } catch (error) {
-            console.error('Logout failed:', error);
-            // Even if API fails, still clear local state and redirect
+        } catch {
             logoutStore();
-            window.location.href = '/';
         } finally {
-            setIsLoggingOut(false);
+            window.location.href = '/';
         }
-    };
-
-    const getStatusBadge = (status: string) => {
-        const badges = {
-            new: 'bg-blue-100 text-blue-700',
-            confirmed: 'bg-yellow-100 text-yellow-700',
-            shipped: 'bg-purple-100 text-purple-700',
-            delivered: 'bg-green-100 text-green-700',
-            cancelled: 'bg-red-100 text-red-700',
-        };
-        return badges[status as keyof typeof badges] || badges.new;
     };
 
     if (profileLoading) {
@@ -205,17 +156,13 @@ const UserProfile = () => {
         );
     }
 
-    // Get current user data
     const currentUser = profileData?.data?.user || user;
 
     return (
         <div className="bg-[#F7F7F7] w-full min-h-screen py-12 px-4">
             <div className="max-w-300 mx-auto">
-                {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap mb-8">
-                    <Link href="/" className="text-[#C85A3A] hover:underline transition-all duration-300">
-                        Home
-                    </Link>
+                    <Link href="/" className="text-[#C85A3A] hover:underline transition-all duration-300">Home</Link>
                     <MdKeyboardArrowRight className="text-[#818B9C]" />
                     <span className="text-[#0B0F0E] font-semibold">My Profile</span>
                 </nav>
@@ -224,7 +171,6 @@ const UserProfile = () => {
                     {/* Sidebar */}
                     <div className="lg:col-span-1">
                         <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
-                            {/* Profile Image */}
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative group">
                                     <div className="w-32 h-32 rounded-full bg-[#F6F6F6] flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
@@ -244,62 +190,27 @@ const UserProfile = () => {
                                     <div className="absolute bottom-0 right-0 w-10 h-10 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center cursor-not-allowed">
                                         <FaCamera className="w-4 h-4" />
                                     </div>
-                                    {/* Tooltip */}
                                     <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-gray-800 text-white text-xs px-3 py-2 rounded whitespace-nowrap z-10">
                                         Upload disabled
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-semibold text-[#0B0F0E] mt-4">
-                                    {currentUser?.fullName || 'User'}
-                                </h3>
+                                <h3 className="text-lg font-semibold text-[#0B0F0E] mt-4">{currentUser?.fullName || 'User'}</h3>
                                 <p className="text-sm text-[#818B9C]">{currentUser?.phone}</p>
                             </div>
 
-                            {/* Navigation */}
                             <nav className="space-y-2">
-                                <button
-                                    onClick={() => setActiveTab('profile')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'profile'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaUser />
-                                    <span className="font-medium">My Profile</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('orders')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'orders'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaBox />
-                                    <span className="font-medium">My Orders</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('wishlist')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'wishlist'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaHeart />
-                                    <span className="font-medium">Wishlist</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('password')}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === 'password'
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
-                                        }`}
-                                >
-                                    <FaLock />
-                                    <span className="font-medium">Change Password</span>
-                                </button>
+                                {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setActiveTab(id)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === id ? 'bg-[#C85A3A] text-white' : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'}`}
+                                    >
+                                        <Icon />
+                                        <span className="font-medium">{label}</span>
+                                    </button>
+                                ))}
                             </nav>
 
-                            {/* Logout */}
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
@@ -327,30 +238,22 @@ const UserProfile = () => {
                                 </div>
 
                                 <form onSubmit={handleSubmit(onSubmitProfile)} className="space-y-6">
-                                    {/* Full Name */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaUser className="text-[#C85A3A]" />
-                                            Full Name
+                                            <FaUser className="text-[#C85A3A]" /> Full Name
                                         </label>
                                         <input
                                             type="text"
                                             disabled={!isEditing}
-                                            {...register('fullName', {
-                                                required: 'Full name is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
+                                            {...register('fullName', { required: 'Full name is required' })}
+                                            className={disabledInputCls}
                                         />
-                                        {errors.fullName && (
-                                            <span className="text-sm text-red-500">{errors.fullName.message}</span>
-                                        )}
+                                        {errors.fullName && <span className="text-sm text-red-500">{errors.fullName.message}</span>}
                                     </div>
 
-                                    {/* Phone (Read-only) */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaPhone className="text-[#C85A3A]" />
-                                            Phone Number
+                                            <FaPhone className="text-[#C85A3A]" /> Phone Number
                                         </label>
                                         <input
                                             type="tel"
@@ -361,53 +264,38 @@ const UserProfile = () => {
                                         <span className="text-xs text-[#818B9C]">Phone number cannot be changed</span>
                                     </div>
 
-                                    {/* Email */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaEnvelope className="text-[#C85A3A]" />
-                                            Email (Optional)
+                                            <FaEnvelope className="text-[#C85A3A]" /> Email (Optional)
                                         </label>
                                         <input
                                             type="email"
                                             disabled={!isEditing}
                                             {...register('email')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
+                                            className={disabledInputCls}
                                         />
                                     </div>
 
-                                    {/* City & Area */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="flex flex-col gap-2">
                                             <label className="text-base font-medium text-[#0B0F0E]">City</label>
-                                            <input
-                                                type="text"
-                                                disabled={!isEditing}
-                                                {...register('city')}
-                                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
-                                            />
+                                            <input type="text" disabled={!isEditing} {...register('city')} className={disabledInputCls} />
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <label className="text-base font-medium text-[#0B0F0E]">Area</label>
-                                            <input
-                                                type="text"
-                                                disabled={!isEditing}
-                                                {...register('area')}
-                                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
-                                            />
+                                            <input type="text" disabled={!isEditing} {...register('area')} className={disabledInputCls} />
                                         </div>
                                     </div>
 
-                                    {/* Address */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaMapMarkerAlt className="text-[#C85A3A]" />
-                                            Address
+                                            <FaMapMarkerAlt className="text-[#C85A3A]" /> Address
                                         </label>
                                         <textarea
                                             rows={3}
                                             disabled={!isEditing}
                                             {...register('address')}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
+                                            className={`${disabledInputCls} resize-none`}
                                         />
                                     </div>
 
@@ -428,54 +316,30 @@ const UserProfile = () => {
                         {activeTab === 'orders' && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
                                 <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">My Orders</h2>
-
                                 {ordersLoading ? (
                                     <div className="text-center py-12 text-[#818B9C]">Loading orders...</div>
                                 ) : ordersData?.data?.orders?.length > 0 ? (
                                     <div className="space-y-4">
                                         {ordersData.data.orders.map((order: any) => (
-                                            <div
-                                                key={order._id}
-                                                className="border border-[#E4E9EE] rounded-lg p-6 hover:shadow-md transition-shadow"
-                                            >
+                                            <div key={order._id} className="border border-[#E4E9EE] rounded-lg p-6 hover:shadow-md transition-shadow">
                                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                                                     <div>
-                                                        <h3 className="text-lg font-semibold text-[#0B0F0E] mb-1">
-                                                            Order {order.orderNumber}
-                                                        </h3>
-                                                        <p className="text-sm text-[#818B9C]">
-                                                            Placed on {new Date(order.orderDate).toLocaleDateString()}
-                                                        </p>
+                                                        <h3 className="text-lg font-semibold text-[#0B0F0E] mb-1">Order {order.orderNumber}</h3>
+                                                        <p className="text-sm text-[#818B9C]">Placed on {new Date(order.orderDate).toLocaleDateString()}</p>
                                                     </div>
-                                                    <span
-                                                        className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusBadge(
-                                                            order.status
-                                                        )}`}
-                                                    >
+                                                    <span className={`px-4 py-2 rounded-full text-sm font-semibold ${STATUS_BADGES[order.status] || STATUS_BADGES.new}`}>
                                                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                                     </span>
                                                 </div>
-
-                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                    <div className="flex gap-6">
-                                                        <div>
-                                                            <p className="text-sm text-[#818B9C] mb-1">Total Amount</p>
-                                                            <p className="text-lg font-bold text-[#C85A3A]">৳{order.total}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm text-[#818B9C] mb-1">Items</p>
-                                                            <p className="text-lg font-semibold text-[#0B0F0E]">
-                                                                {order.items.length}
-                                                            </p>
-                                                        </div>
+                                                <div className="flex gap-6">
+                                                    <div>
+                                                        <p className="text-sm text-[#818B9C] mb-1">Total Amount</p>
+                                                        <p className="text-lg font-bold text-[#C85A3A]">৳{order.total}</p>
                                                     </div>
-
-                                                    <button
-                                                        onClick={() => router.push(`/orders/${order._id}`)}
-                                                        className="px-6 py-2 border border-[#C85A3A] text-[#C85A3A] rounded-lg font-medium hover:bg-[#C85A3A] hover:text-white transition-all"
-                                                    >
-                                                        View Details
-                                                    </button>
+                                                    <div>
+                                                        <p className="text-sm text-[#818B9C] mb-1">Items</p>
+                                                        <p className="text-lg font-semibold text-[#0B0F0E]">{order.items.length}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -497,7 +361,6 @@ const UserProfile = () => {
                                     <div className="text-center py-12 text-[#818B9C]">Loading wishlist...</div>
                                 ) : wishlistData?.data?.wishlist?.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {/* Render wishlist products */}
                                         <p className="text-[#818B9C]">Wishlist items will be displayed here</p>
                                     </div>
                                 ) : (
@@ -513,72 +376,23 @@ const UserProfile = () => {
                         {activeTab === 'password' && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
                                 <h2 className="text-2xl font-bold text-[#0B0F0E] mb-6">Change Password</h2>
-
                                 <form onSubmit={handleSubmitPassword(onSubmitPassword)} className="space-y-6">
-                                    {/* Current Password */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Current Password
-                                        </label>
-                                        <input
-                                            type="password"
-                                            {...registerPassword('currentPassword', {
-                                                required: 'Current password is required',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {passwordErrors.currentPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.currentPassword.message}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* New Password */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">New Password</label>
-                                        <input
-                                            type="password"
-                                            {...registerPassword('newPassword', {
-                                                required: 'New password is required',
-                                                minLength: {
-                                                    value: 8,
-                                                    message: 'Password must be at least 8 characters',
-                                                },
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {passwordErrors.newPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.newPassword.message}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Confirm Password */}
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-base font-medium text-[#0B0F0E]">
-                                            Confirm New Password
-                                        </label>
-                                        <input
-                                            type="password"
-                                            {...registerPassword('confirmPassword', {
-                                                required: 'Please confirm your password',
-                                                validate: (value) => value === newPassword || 'Passwords do not match',
-                                            })}
-                                            className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
-                                        />
-                                        {passwordErrors.confirmPassword && (
-                                            <span className="text-sm text-red-500">
-                                                {passwordErrors.confirmPassword.message}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all"
-                                    >
+                                    {[
+                                        { name: 'currentPassword' as const, label: 'Current Password', rules: { required: 'Current password is required' } },
+                                        { name: 'newPassword' as const, label: 'New Password', rules: { required: 'New password is required', minLength: { value: 8, message: 'Password must be at least 8 characters' } } },
+                                        { name: 'confirmPassword' as const, label: 'Confirm New Password', rules: { required: 'Please confirm your password', validate: (v: string) => v === newPassword || 'Passwords do not match' } },
+                                    ].map(({ name, label, rules }) => (
+                                        <div key={name} className="flex flex-col gap-2">
+                                            <label className="text-base font-medium text-[#0B0F0E]">{label}</label>
+                                            <input
+                                                type="password"
+                                                {...registerPassword(name, rules)}
+                                                className={inputCls}
+                                            />
+                                            {passwordErrors[name] && <span className="text-sm text-red-500">{passwordErrors[name]?.message}</span>}
+                                        </div>
+                                    ))}
+                                    <button type="submit" className="w-full md:w-auto px-8 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all">
                                         Change Password
                                     </button>
                                 </form>

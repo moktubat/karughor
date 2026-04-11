@@ -27,7 +27,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     image,
     originalPrice,
     salePrice,
-    discount,              // ✅ NO default — only show if explicitly passed
+    discount,
     rating = '4.8',
     isLiked = false,
     onToggleLike,
@@ -46,7 +46,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         e.preventDefault();
         e.stopPropagation();
         addItem({
-            id: id,
+            id,
             name,
             image,
             price: Number(salePrice.replace(/[^\d.]/g, '')),
@@ -66,25 +66,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             href={`/products/${id}`}
             className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col h-full transition-transform hover:-translate-y-1"
         >
-            {/* Image Box — fixed square, object-cover so all images are same size */}
             <div className="relative bg-[#F6F6F6] w-full aspect-square group overflow-hidden">
-
-                {/* ✅ Only show discount badge if discount is actually passed */}
                 {discount && (
                     <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
                         {discount}
                     </div>
                 )}
-
                 <Image
                     src={image}
                     alt={name}
                     fill
-                    className="object-cover"  // ✅ fills the square uniformly
+                    className="object-cover"
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 />
-
-                {/* Hover Overlay */}
                 <div className="absolute inset-0 bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100 rounded-lg cursor-pointer">
                     <div className="flex justify-end p-3">
                         <button
@@ -110,8 +104,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     </div>
                 </div>
             </div>
-
-            {/* Info Box — flex-1 so all cards stretch to same height */}
             <div className="flex flex-col flex-1 p-4 gap-2">
                 <p className="text-base font-semibold text-[#0B0F0E] line-clamp-2 flex-1">{name}</p>
                 <div className="flex items-center justify-between mt-auto">

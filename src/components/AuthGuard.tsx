@@ -7,14 +7,10 @@ import { authService } from '@/lib/authService';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const { isAuthenticated, user } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
-        // Check if token exists
-        const hasToken = authService.isAuthenticated();
-
-        if (!hasToken && !isAuthenticated) {
-            console.log('🔒 [AuthGuard] No auth, redirecting to login');
+        if (!authService.isAuthenticated() && !isAuthenticated) {
             router.replace('/login?redirect=/profile');
         }
     }, [isAuthenticated, router]);
