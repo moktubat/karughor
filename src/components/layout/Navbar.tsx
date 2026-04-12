@@ -12,6 +12,20 @@ import { getCategoryIcon } from '@/lib/categoryIcons';
 import { useCartStore } from '@/store/cartStore';
 import { MdOutlineShoppingCart } from 'react-icons/md';
 
+// Shown instantly while the API warms up — replaced silently when real data arrives
+const STATIC_CATEGORIES = [
+    { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', subCategories: [] },
+    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', subCategories: [] },
+    { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', subCategories: [] },
+    { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', subCategories: [] },
+    { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', subCategories: [] },
+    { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils', subCategories: [] },
+    { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper', subCategories: [] },
+    { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt', subCategories: [] },
+    { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed', subCategories: [] },
+    { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle', subCategories: [] },
+];
+
 const Navbar: React.FC = () => {
     const router = useRouter();
     const pathname = usePathname();
@@ -29,15 +43,16 @@ const Navbar: React.FC = () => {
 
     const isAdminPage = pathname.startsWith('/admin');
 
-    // Fetch categories for dropdown
-    const { data: categories } = useQuery({
+    const { data: apiCategories } = useQuery({
         queryKey: ['categories'],
         queryFn: categoryService.getAll,
         staleTime: 5 * 60 * 1000,
         enabled: !isAdminPage,
     });
 
-    // Close menus on outside click
+    // Show static categories immediately; swap to real data when API responds
+    const categories = (apiCategories && apiCategories.length > 0) ? apiCategories : STATIC_CATEGORIES;
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -51,7 +66,6 @@ const Navbar: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Close menus on route change
     useEffect(() => {
         setShowUserMenu(false);
         setShowCategoryMenu(false);
@@ -59,7 +73,6 @@ const Navbar: React.FC = () => {
 
     const handleLogoClick = useCallback(() => router.push('/'), [router]);
 
-    // ── Search ────────────────────────────────────────────────────────────────
     const handleSearch = useCallback(
         (e?: React.FormEvent) => {
             e?.preventDefault();
@@ -76,7 +89,6 @@ const Navbar: React.FC = () => {
         if (e.key === 'Enter') handleSearch();
     };
 
-    // ── Logout ────────────────────────────────────────────────────────────────
     const handleLogout = async () => {
         try {
             setIsLoggingOut(true);
@@ -89,7 +101,7 @@ const Navbar: React.FC = () => {
                 logoutStore();
                 window.location.href = '/';
             }
-        } catch (error) {
+        } catch {
             logoutStore();
             window.location.href = isAdminPage ? '/admin/login' : '/';
         } finally {
@@ -109,7 +121,7 @@ const Navbar: React.FC = () => {
 
     return (
         <nav className="bg-white w-full shadow-sm sticky top-0 z-50">
-            <div className="max-w-300 mx-auto py-4 px-4 md:px-0 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
+            <div className="max-w-300 mx-auto py-4 px-4 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
                 {/* Logo */}
                 <div
                     onClick={handleLogoClick}
@@ -122,7 +134,7 @@ const Navbar: React.FC = () => {
                 {!isAdminPage && (
                     <form
                         onSubmit={handleSearch}
-                        className="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-2.5 flex-1 max-w-175 order-3 md:order-none w-full md:w-auto"
+                        className="flex items-center gap-3 bg-gray-100 rounded-lg px-4 py-2.5 flex-1 max-w-175 order-3 md:order-0 w-full md:w-auto"
                     >
                         {/* All Categories Dropdown */}
                         <div className="relative hidden md:block" ref={categoryMenuRef}>
@@ -135,51 +147,46 @@ const Navbar: React.FC = () => {
                                 <FaChevronDown className={`w-3 h-3 transition-transform ${showCategoryMenu ? 'rotate-180' : ''}`} />
                             </button>
 
-                            {/* Category Dropdown Menu */}
                             {showCategoryMenu && (
                                 <div className="absolute top-full left-0 mt-3 bg-white rounded-xl shadow-xl border border-[#E4E9EE] w-72 z-50 py-2 max-h-[70vh] overflow-y-auto">
                                     <div className="px-4 py-2 text-xs font-semibold text-[#818B9C] uppercase tracking-wider border-b border-[#E4E9EE]">
                                         Browse Categories
                                     </div>
-                                    {categories && categories.length > 0 ? (
-                                        categories.map((cat) => {
-                                            const IconComponent = getCategoryIcon(cat.icon);
-                                            return (
-                                                <div key={cat._id}>
-                                                    <Link
-                                                        href={`/products?category=${cat.slug}`}
-                                                        onClick={() => setShowCategoryMenu(false)}
-                                                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#FFF5F2] hover:text-[#C85A3A] transition-colors group"
-                                                    >
-                                                        <div className="w-8 h-8 rounded-full bg-[#F7F7F7] group-hover:bg-[#C85A3A]/10 flex items-center justify-center flex-shrink-0">
-                                                            <IconComponent className="w-4 h-4 text-[#818B9C] group-hover:text-[#C85A3A]" />
-                                                        </div>
-                                                        <span className="text-sm font-medium text-[#0B0F0E] group-hover:text-[#C85A3A] line-clamp-1">
-                                                            {cat.name}
-                                                        </span>
-                                                    </Link>
 
-                                                    {/* Sub-categories */}
-                                                    {cat.subCategories && cat.subCategories.filter(s => s.isActive).length > 0 && (
-                                                        <div className="pl-14 pb-1">
-                                                            {cat.subCategories.filter(s => s.isActive).map((sub) => (
-                                                                <Link
-                                                                    key={sub._id}
-                                                                    href={`/products?category=${cat.slug}&sub=${sub.slug}`}
-                                                                    onClick={() => setShowCategoryMenu(false)}
-                                                                    className="block text-xs text-[#818B9C] py-1 hover:text-[#C85A3A] transition-colors"
-                                                                >
-                                                                    › {sub.name}
-                                                                </Link>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="px-4 py-3 text-sm text-[#818B9C]">Loading categories...</div>
-                                    )}
+                                    {categories.map((cat) => {
+                                        const IconComponent = getCategoryIcon(cat.icon);
+                                        return (
+                                            <div key={cat._id}>
+                                                <Link
+                                                    href={`/products?category=${cat.slug}`}
+                                                    onClick={() => setShowCategoryMenu(false)}
+                                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#FFF5F2] hover:text-[#C85A3A] transition-colors group"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-[#F7F7F7] group-hover:bg-[#C85A3A]/10 flex items-center justify-center shrink-0">
+                                                        <IconComponent className="w-4 h-4 text-[#818B9C] group-hover:text-[#C85A3A]" />
+                                                    </div>
+                                                    <span className="text-sm font-medium text-[#0B0F0E] group-hover:text-[#C85A3A] line-clamp-1">
+                                                        {cat.name}
+                                                    </span>
+                                                </Link>
+
+                                                {cat.subCategories && cat.subCategories.filter(s => s.isActive).length > 0 && (
+                                                    <div className="pl-14 pb-1">
+                                                        {cat.subCategories.filter(s => s.isActive).map((sub) => (
+                                                            <Link
+                                                                key={sub._id}
+                                                                href={`/products?category=${cat.slug}&sub=${sub.slug}`}
+                                                                onClick={() => setShowCategoryMenu(false)}
+                                                                className="block text-xs text-[#818B9C] py-1 hover:text-[#C85A3A] transition-colors"
+                                                            >
+                                                                › {sub.name}
+                                                            </Link>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
 
                                     <div className="border-t border-[#E4E9EE] mt-1 pt-1">
                                         <Link
@@ -206,7 +213,6 @@ const Navbar: React.FC = () => {
                             className="flex-1 bg-transparent outline-none text-sm font-medium placeholder-gray-500"
                         />
 
-                        {/* Search Button */}
                         <button
                             type="submit"
                             aria-label="Search"
@@ -219,7 +225,6 @@ const Navbar: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-4">
-                    {/* Cart */}
                     {!isAdminPage && (
                         <>
                             <Link href="/cart" className="relative">
@@ -247,7 +252,7 @@ const Navbar: React.FC = () => {
                         </button>
 
                         {showUserMenu && (
-                            <div className="absolute right-0 mt-3 bg-white rounded-xl shadow-xl border border-[#E4E9EE] min-w-[180px] overflow-hidden z-50">
+                            <div className="absolute right-0 mt-3 bg-white rounded-xl shadow-xl border border-[#E4E9EE] min-w-45 overflow-hidden z-50">
                                 <div className="px-4 py-3 font-semibold border-b border-[#E4E9EE] text-[#0B0F0E]">
                                     {currentUserName}
                                     {isAdminPage && admin && (

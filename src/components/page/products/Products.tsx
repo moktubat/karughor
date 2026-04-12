@@ -13,7 +13,7 @@ import Link from 'next/link';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 const ITEMS_PER_PAGE = 12;
 
-// ✅ Same static fallback — categories show instantly, no waiting for API
+// Shown instantly while the API warms up — replaced silently when real data arrives
 const STATIC_CATEGORIES = [
     { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket' },
     { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag' },
@@ -28,8 +28,7 @@ const STATIC_CATEGORIES = [
 ];
 
 const fetchProducts = async (params: Record<string, string>) => {
-    const query = new URLSearchParams(params).toString();
-    const res = await axios.get(`${API_URL}/products?${query}`);
+    const res = await axios.get(`${API_URL}/products?${new URLSearchParams(params).toString()}`);
     return res.data.data;
 };
 
@@ -63,15 +62,14 @@ const Products = () => {
         queryFn: () => fetchProducts(apiParams),
     });
 
-    // ✅ API categories replace static when ready — no blank state ever
     const { data: apiCategories } = useQuery({
         queryKey: ['categories'],
         queryFn: categoryService.getAll,
         staleTime: 5 * 60 * 1000,
     });
-    const categories = (apiCategories && apiCategories.length > 0)
-        ? apiCategories
-        : STATIC_CATEGORIES;
+
+    // Show static categories immediately; swap to real data when API responds
+    const categories = (apiCategories && apiCategories.length > 0) ? apiCategories : STATIC_CATEGORIES;
 
     const products = productsData?.products || [];
     const pagination = productsData?.pagination;
@@ -100,19 +98,14 @@ const Products = () => {
 
     return (
         <div className="bg-white pt-4 md:pt-8 pb-10 md:pb-20">
-            <div className="max-w-[1200px] mx-auto px-4 md:px-0">
+            <div className="max-w-300 mx-auto px-4 md:px-0">
 
-                {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-[#818B9C]" aria-label="Breadcrumb">
-                    <Link href="/" className="text-[#C85A3A] font-medium hover:underline">
-                        Home
-                    </Link>
+                    <Link href="/" className="text-[#C85A3A] font-medium hover:underline">Home</Link>
                     <MdKeyboardArrowRight className="text-[#818B9C]" />
                     {activeCategory ? (
                         <>
-                            <Link href="/products" className="text-[#C85A3A] font-medium hover:underline">
-                                Products
-                            </Link>
+                            <Link href="/products" className="text-[#C85A3A] font-medium hover:underline">Products</Link>
                             <MdKeyboardArrowRight className="text-[#818B9C]" />
                             <span className="text-[#0B0F0E] font-semibold capitalize">
                                 {activeCatLabel || activeCategory.replace(/-/g, ' ')}
@@ -123,39 +116,26 @@ const Products = () => {
                     )}
                 </nav>
 
-                {/* Heading + filters row */}
                 <div className="mt-1">
                     <h1 className="text-2xl font-semibold mb-0.5">{headingText}</h1>
 
                     <div className="flex justify-between gap-8 flex-wrap items-start">
-
-                        {/* ✅ Category chips — always populated from static or API */}
                         <div className="flex-1 mt-3">
                             <div className="flex flex-wrap gap-y-3 gap-x-6">
-
                                 <button
                                     onClick={() => handleCategoryClick('')}
-                                    className={`text-sm font-medium transition-colors ${!activeCategory
-                                        ? 'text-[#C85A3A] underline underline-offset-4'
-                                        : 'text-[#0B0F0E] hover:text-[#C85A3A]'
-                                        }`}
+                                    className={`text-sm font-medium transition-colors ${!activeCategory ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
                                 >
                                     All Products
                                     {!activeCategory && pagination && (
-                                        <span className="text-[#818B9C] font-normal ml-1">
-                                            ({pagination.total})
-                                        </span>
+                                        <span className="text-[#818B9C] font-normal ml-1">({pagination.total})</span>
                                     )}
                                 </button>
-
                                 {categories.map((cat) => (
                                     <button
                                         key={cat._id}
                                         onClick={() => handleCategoryClick(cat.slug)}
-                                        className={`text-sm font-medium transition-colors text-left ${activeCategory === cat.slug
-                                            ? 'text-[#C85A3A] underline underline-offset-4'
-                                            : 'text-[#0B0F0E] hover:text-[#C85A3A]'
-                                            }`}
+                                        className={`text-sm font-medium transition-colors text-left ${activeCategory === cat.slug ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
                                     >
                                         {cat.name}
                                     </button>
@@ -163,17 +143,15 @@ const Products = () => {
                             </div>
                         </div>
 
-                        {/* Sort By */}
-                        <div className="flex items-center gap-2 mt-3 flex-shrink-0">
-                            <label htmlFor="sort-select" className="text-[#818B9C] text-sm whitespace-nowrap">
-                                Sort By:
-                            </label>
+                        <div className="flex items-center gap-2 mt-3 shrink-0">
+                            <label htmlFor="sort-select" className="text-[#818B9C] text-sm whitespace-nowrap">Sort By:</label>
                             <select
                                 id="sort-select"
                                 value={sortBy}
                                 onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                                 className="py-2.5 px-4 rounded-lg border border-[#E4E9EE] bg-white cursor-pointer focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 text-sm"
                             >
+                                <option value="-createdAt">Newest First</option>
                                 <option value="price">Price: Low to High</option>
                                 <option value="-price">Price: High to Low</option>
                             </select>
@@ -181,7 +159,6 @@ const Products = () => {
                     </div>
                 </div>
 
-                {/* Products grid */}
                 <div className="mt-8">
                     {productsLoading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -209,10 +186,7 @@ const Products = () => {
                                         key={product._id}
                                         id={product._id}
                                         name={product.name}
-                                        image={
-                                            product.images?.[0] ||
-                                            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'
-                                        }
+                                        image={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
                                         salePrice={`৳${product.price}`}
                                         originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
                                         discount={
@@ -237,7 +211,6 @@ const Products = () => {
                                     >
                                         <MdChevronLeft className="w-4 h-4" />
                                     </button>
-
                                     {Array.from({ length: totalPages }).map((_, i) => {
                                         const page = i + 1;
                                         return (
@@ -245,16 +218,12 @@ const Products = () => {
                                                 key={page}
                                                 onClick={() => goToPage(page)}
                                                 aria-current={page === currentPage ? 'page' : undefined}
-                                                className={`border border-[#C85A3A] rounded-md py-1.5 px-3 cursor-pointer font-semibold text-sm transition-all duration-200 hover:bg-[#C85A3A] hover:text-white ${page === currentPage
-                                                    ? 'bg-[#C85A3A] text-white'
-                                                    : 'bg-transparent text-[#0B0F0E]'
-                                                    }`}
+                                                className={`border border-[#C85A3A] rounded-md py-1.5 px-3 cursor-pointer font-semibold text-sm transition-all duration-200 hover:bg-[#C85A3A] hover:text-white ${page === currentPage ? 'bg-[#C85A3A] text-white' : 'bg-transparent text-[#0B0F0E]'}`}
                                             >
                                                 {page}
                                             </button>
                                         );
                                     })}
-
                                     <button
                                         onClick={() => goToPage(currentPage + 1)}
                                         disabled={currentPage === totalPages}

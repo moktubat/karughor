@@ -10,7 +10,6 @@ import {
     FaCloudUploadAlt, FaSpinner,
 } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
-import Image from 'next/image';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
@@ -36,6 +35,20 @@ interface ProductForm {
 }
 
 const EMPTY_FORM: ProductForm = { name: '', category: '', price: '', originalPrice: '', stock: '', description: '' };
+
+// Shown instantly while the API warms up — replaced silently when real data arrives
+const STATIC_CATEGORIES = [
+    { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', isActive: true, sortOrder: 1, subCategories: [] },
+    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', isActive: true, sortOrder: 2, subCategories: [] },
+    { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', isActive: true, sortOrder: 3, subCategories: [] },
+    { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', isActive: true, sortOrder: 4, subCategories: [] },
+    { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', isActive: true, sortOrder: 5, subCategories: [] },
+    { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils', isActive: true, sortOrder: 6, subCategories: [] },
+    { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper', isActive: true, sortOrder: 7, subCategories: [] },
+    { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt', isActive: true, sortOrder: 8, subCategories: [] },
+    { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed', isActive: true, sortOrder: 9, subCategories: [] },
+    { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle', isActive: true, sortOrder: 10, subCategories: [] },
+];
 
 function getAdminToken() {
     if (typeof window === 'undefined') return '';
@@ -68,12 +81,14 @@ const ProductsManagement = () => {
     });
     const products = data || [];
 
-    // Reuse the shared categories cache — no static fallback needed
-    const { data: categories = [] } = useQuery({
+    const { data: apiCategories } = useQuery({
         queryKey: ['categories'],
         queryFn: categoryService.getAll,
         staleTime: 5 * 60 * 1000,
     });
+
+    // Show static categories immediately; swap to real data when API responds
+    const categories = (apiCategories && apiCategories.length > 0) ? apiCategories : STATIC_CATEGORIES;
 
     const createMutation = useMutation({
         mutationFn: async (formData: FormData) => {
@@ -233,14 +248,9 @@ const ProductsManagement = () => {
                                         <tr key={product._id} className="border-t border-[#E4E9EE] hover:bg-[#F7F7F7] transition-colors">
                                             <td className="py-4 px-4">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-16 h-16 bg-[#F6F6F6] rounded-lg flex items-center justify-center shrink-0 overflow-hidden relative">
+                                                    <div className="w-16 h-16 bg-[#F6F6F6] rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                                                         {product.images?.[0] ? (
-                                                            <Image
-                                                                src={product.images[0]}
-                                                                alt={product.name}
-                                                                fill
-                                                                className="object-cover"
-                                                            />
+                                                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                                                         ) : (
                                                             <FaCloudUploadAlt className="w-6 h-6 text-[#C0C8D2]" />
                                                         )}
