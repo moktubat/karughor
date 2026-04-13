@@ -56,6 +56,7 @@ const NewArrivals = () => {
                                     rating={product.rating}
                                     isLiked={likedProducts.has(product._id)}
                                     onToggleLike={toggleLike}
+                                    stock={product.stock}
                                 />
                             ))
                             : // Fallback if no products yet

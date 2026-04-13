@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/lib/authService';
@@ -8,12 +8,27 @@ import { authService } from '@/lib/authService';
 export function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { isAuthenticated } = useAuthStore();
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
+        setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hydrated) return;
         if (!authService.isAuthenticated() && !isAuthenticated) {
             router.replace('/login?redirect=/profile');
         }
-    }, [isAuthenticated, router]);
+    }, [hydrated, isAuthenticated, router]);
+
+    // Wait for hydration before making auth decisions
+    if (!hydrated) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-lg text-gray-600">Loading...</div>
+            </div>
+        );
+    }
 
     if (!isAuthenticated && !authService.isAuthenticated()) {
         return (

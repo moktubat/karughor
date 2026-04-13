@@ -78,6 +78,7 @@ const ProductsSection = () => {
                                     rating={product.rating}
                                     isLiked={likedProducts.has(product._id)}
                                     onToggleLike={toggleLike}
+                                    stock={product.stock}
                                 />
                             ))}
                         </div>

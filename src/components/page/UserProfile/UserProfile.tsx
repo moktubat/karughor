@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,6 +15,9 @@ import { userService, type UpdateProfileData } from '@/lib/userService';
 import { authService } from '@/lib/authService';
 import Image from 'next/image';
 import axios from 'axios';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/common/Toast';
+import { ProductCard } from '@/components/common/ProductCard';
 
 interface ProfileFormValues {
     fullName: string;
@@ -52,11 +55,11 @@ const inputCls = "px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transit
 const disabledInputCls = `${inputCls} disabled:bg-[#F7F7F7] disabled:cursor-not-allowed`;
 
 const UserProfile = () => {
-    const router = useRouter();
+
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user, setUser, logout: logoutStore } = useAuthStore();
-
+    const { toast, showSuccess, showError } = useToast();
     const tabParam = searchParams.get('tab') as Tab | null;
     const [activeTab, setActiveTab] = useState<Tab>(tabParam || 'profile');
     const [isEditing, setIsEditing] = useState(false);
@@ -86,10 +89,10 @@ const UserProfile = () => {
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
             setUser(data.data.user);
             setIsEditing(false);
-            alert('Profile updated successfully!');
+            showSuccess('Profile updated successfully!');
         },
         onError: (error: any) => {
-            alert(error.response?.data?.message || 'Failed to update profile');
+            showError(error.response?.data?.message || 'Failed to update profile');
         },
     });
 
@@ -129,10 +132,10 @@ const UserProfile = () => {
                 { currentPassword: data.currentPassword, newPassword: data.newPassword },
                 { withCredentials: true }
             );
-            alert('Password changed successfully!');
+            showSuccess('Password changed successfully!');
             resetPassword();
         } catch (error: any) {
-            alert(error.response?.data?.error?.message || 'Failed to change password');
+            showError(error.response?.data?.error?.message || 'Failed to change password');
         }
     };
 
@@ -361,7 +364,16 @@ const UserProfile = () => {
                                     <div className="text-center py-12 text-[#818B9C]">Loading wishlist...</div>
                                 ) : wishlistData?.data?.wishlist?.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        <p className="text-[#818B9C]">Wishlist items will be displayed here</p>
+                                        {wishlistData.data.wishlist.map((product: any) => (
+                                            <ProductCard
+                                                key={product._id}
+                                                id={product._id}
+                                                name={product.name}
+                                                image={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
+                                                salePrice={`৳${product.price}`}
+                                                originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
+                                            />
+                                        ))}
                                     </div>
                                 ) : (
                                     <div className="text-center py-12 text-[#818B9C]">
@@ -401,6 +413,7 @@ const UserProfile = () => {
                     </div>
                 </div>
             </div>
+            {toast && <Toast message={toast.message} type={toast.type} />}
         </div>
     );
 };

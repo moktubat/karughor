@@ -144,7 +144,7 @@ const ForgotPassword = () => {
                             OTP sent to <span className="font-semibold text-[#0B0F0E]">{phone}</span>
                         </p>
                         <p className="text-center text-xs text-[#818B9C] mb-8">
-                            Check your phone (or server console during development)
+                            OTP has been sent to your registered phone number.
                         </p>
 
                         {error && (

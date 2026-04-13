@@ -1,16 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { FaSave, FaSpinner } from 'react-icons/fa';
+import { adminAuthHeaders } from '@/lib/adminAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
+
 
 interface ISettings {
     codEnabled: boolean;
@@ -55,9 +53,8 @@ const Settings = () => {
 
     const saveMutation = useMutation({
         mutationFn: async (settings: ISettings) => {
-            const token = getAdminToken();
             const res = await axios.put(`${API_URL}/settings`, settings, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             return res.data;

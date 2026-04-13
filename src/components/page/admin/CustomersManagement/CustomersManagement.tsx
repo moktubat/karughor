@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import {
@@ -11,13 +11,11 @@ import {
     FaEye,
     FaExclamationTriangle,
 } from 'react-icons/fa';
+import { adminAuthHeaders } from '@/lib/adminAuth';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
 
 interface DerivedCustomer {
     phone: string;
@@ -38,9 +36,8 @@ const CustomersManagement = () => {
     const { data: ordersRaw, isLoading } = useQuery({
         queryKey: ['admin-all-orders-for-customers'],
         queryFn: async () => {
-            const token = getAdminToken();
             const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             return res.data.data.orders as any[];

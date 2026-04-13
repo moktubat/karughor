@@ -1,18 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import {
     FaBell, FaShoppingCart, FaExclamationTriangle, FaTimes, FaCheck, FaSpinner,
 } from 'react-icons/fa';
+import { adminAuthHeaders } from '@/lib/adminAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
+
 
 interface Notification {
     id: string;
@@ -40,13 +38,13 @@ const Notifications = () => {
     const [readIds, setReadIds] = useState<Set<string>>(new Set());
     const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
+
     // Fetch recent orders
     const { data: ordersData, isLoading: ordersLoading } = useQuery({
         queryKey: ['admin-notifications-orders'],
         queryFn: async () => {
-            const token = getAdminToken();
             const res = await axios.get(`${API_URL}/orders/admin/all?limit=50&sort=-createdAt`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             return res.data.data.orders as any[];
@@ -58,9 +56,8 @@ const Notifications = () => {
     const { data: lowStockData, isLoading: stockLoading } = useQuery({
         queryKey: ['admin-notifications-stock'],
         queryFn: async () => {
-            const token = getAdminToken();
             const res = await axios.get(`${API_URL}/products?limit=200`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             const products = res.data.data.products as any[];

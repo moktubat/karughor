@@ -4,12 +4,16 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { categoryService } from '@/lib/categoryService';
+import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import {
     FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash,
     FaSearch, FaExclamationTriangle, FaTimes,
     FaCloudUploadAlt, FaSpinner,
 } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
+import { adminAuthHeaders } from '@/lib/adminAuth';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/common/Toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
@@ -36,28 +40,6 @@ interface ProductForm {
 
 const EMPTY_FORM: ProductForm = { name: '', category: '', price: '', originalPrice: '', stock: '', description: '' };
 
-// Shown instantly while the API warms up — replaced silently when real data arrives
-const STATIC_CATEGORIES = [
-    { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', isActive: true, sortOrder: 1, subCategories: [] },
-    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', isActive: true, sortOrder: 2, subCategories: [] },
-    { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', isActive: true, sortOrder: 3, subCategories: [] },
-    { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', isActive: true, sortOrder: 4, subCategories: [] },
-    { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', isActive: true, sortOrder: 5, subCategories: [] },
-    { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils', isActive: true, sortOrder: 6, subCategories: [] },
-    { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper', isActive: true, sortOrder: 7, subCategories: [] },
-    { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt', isActive: true, sortOrder: 8, subCategories: [] },
-    { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed', isActive: true, sortOrder: 9, subCategories: [] },
-    { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle', isActive: true, sortOrder: 10, subCategories: [] },
-];
-
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
-function authHeaders() {
-    const token = getAdminToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 const ProductsManagement = () => {
     const queryClient = useQueryClient();
@@ -71,11 +53,12 @@ const ProductsManagement = () => {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast, showSuccess, showError } = useToast();
 
     const { data, isLoading } = useQuery({
         queryKey: ['admin-products'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products?limit=200`, { headers: authHeaders(), withCredentials: true });
+            const res = await axios.get(`${API_URL}/products?limit=200`, { headers: adminAuthHeaders(), withCredentials: true });
             return res.data.data.products as Product[];
         },
     });
@@ -92,28 +75,63 @@ const ProductsManagement = () => {
 
     const createMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            const res = await axios.post(`${API_URL}/products`, formData, { headers: { ...authHeaders() }, withCredentials: true });
+            const res = await axios.post(`${API_URL}/products`, formData, { headers: { ...adminAuthHeaders() }, withCredentials: true });
             return res.data;
         },
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); handleCloseModal(); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+            handleCloseModal();
+            showSuccess('Product created successfully!');
+        },
+        onError: (err: any) => {
+            showError(
+                err.response?.data?.error?.message ||
+                err.response?.data?.message ||
+                'Failed to save product.'
+            );
+        },
+
     });
 
     const updateMutation = useMutation({
         mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
-            const res = await axios.put(`${API_URL}/products/${id}`, formData, { headers: { ...authHeaders() }, withCredentials: true });
+            const res = await axios.put(`${API_URL}/products/${id}`, formData, { headers: { ...adminAuthHeaders() }, withCredentials: true });
             return res.data;
         },
-        onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); handleCloseModal(); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+            handleCloseModal();
+            showSuccess('Product updated successfully!');
+        },
+        onError: (err: any) => {
+            showError(
+                err.response?.data?.error?.message ||
+                err.response?.data?.message ||
+                'Failed to update product.'
+            );
+        },
     });
 
     const deleteMutation = useMutation({
-        mutationFn: async (id: string) => { await axios.delete(`${API_URL}/products/${id}`, { headers: authHeaders(), withCredentials: true }); },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
+        mutationFn: async (id: string) => { await axios.delete(`${API_URL}/products/${id}`, { headers: adminAuthHeaders(), withCredentials: true }); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+            showSuccess('Product deleted successfully!');
+        },
+        onError: () => {
+            showError('Failed to delete product.');
+        },
     });
 
     const toggleMutation = useMutation({
-        mutationFn: async (id: string) => { await axios.patch(`${API_URL}/products/${id}/toggle`, {}, { headers: authHeaders(), withCredentials: true }); },
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-products'] }),
+        mutationFn: async (id: string) => { await axios.patch(`${API_URL}/products/${id}/toggle`, {}, { headers: adminAuthHeaders(), withCredentials: true }); },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+            showSuccess('Product status updated!');
+        },
+        onError: () => {
+            showError('Failed to update product status.');
+        },
     });
 
     const addFiles = useCallback((files: FileList | File[]) => {
@@ -351,10 +369,10 @@ const ProductsManagement = () => {
                                     <label className="text-base font-medium text-[#0B0F0E]">Category *</label>
                                     <select value={productForm.category} onChange={e => setProductForm(p => ({ ...p, category: e.target.value }))} required className="px-4 py-3 border border-[#E4E9EE] rounded-lg focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 bg-white text-[#0B0F0E]">
                                         <option value="" disabled>Select a category</option>
-                                        {categories.filter(c => c.isActive).map(cat => (
+                                        {categories.filter((c: any) => c.isActive).map((cat: any) => (
                                             <optgroup key={cat._id} label={cat.name}>
                                                 <option value={cat.name}>{cat.name}</option>
-                                                {cat.subCategories.filter(s => s.isActive).map(sub => (
+                                                {cat.subCategories.filter((s: any) => s.isActive).map((sub: any) => (
                                                     <option key={sub._id} value={sub.name}>&nbsp;&nbsp;↳ {sub.name}</option>
                                                 ))}
                                             </optgroup>
@@ -386,10 +404,6 @@ const ProductsManagement = () => {
                                     <textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} required rows={4} placeholder="Enter product description" className="px-4 py-3 border border-[#E4E9EE] rounded-lg focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 resize-none" />
                                 </div>
 
-                                {(createMutation.isError || updateMutation.isError) && (
-                                    <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-4 py-3">Failed to save product. Please try again.</p>
-                                )}
-
                                 <div className="flex gap-4 pt-2">
                                     <button type="button" onClick={handleCloseModal} className="flex-1 px-6 py-3 border border-[#E4E9EE] text-[#818B9C] rounded-lg font-semibold hover:bg-[#F7F7F7] transition-all">Cancel</button>
                                     <button
@@ -405,6 +419,7 @@ const ProductsManagement = () => {
                     </div>
                 )}
             </div>
+            {toast && <Toast message={toast.message} type={toast.type} />}
         </div>
     );
 };

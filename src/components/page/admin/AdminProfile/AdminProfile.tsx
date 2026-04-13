@@ -1,22 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { FaUser, FaEnvelope, FaLock, FaStore, FaPhone, FaCamera, FaSpinner } from 'react-icons/fa';
+import { adminAuthHeaders } from '@/lib/adminAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
 
-function authHeaders() {
-    const token = getAdminToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 interface ProfileFormValues {
     fullName: string;
@@ -48,7 +41,7 @@ const AdminProfile = () => {
         queryKey: ['admin-profile'],
         queryFn: async () => {
             const res = await axios.get(`${API_URL}/admin/profile`, {
-                headers: authHeaders(),
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             return res.data.data.admin;
@@ -78,7 +71,7 @@ const AdminProfile = () => {
             const res = await axios.put(
                 `${API_URL}/admin/profile`,
                 { fullName: data.fullName, phone: data.phone },
-                { headers: authHeaders(), withCredentials: true }
+                { headers: adminAuthHeaders(), withCredentials: true }
             );
             return res.data;
         },
@@ -122,7 +115,7 @@ const AdminProfile = () => {
                         address: data.storeAddress,
                     },
                 },
-                { headers: authHeaders(), withCredentials: true }
+                { headers: adminAuthHeaders(), withCredentials: true }
             );
             return res.data;
         },
@@ -151,7 +144,7 @@ const AdminProfile = () => {
             const res = await axios.put(
                 `${API_URL}/admin/profile/password`,
                 { currentPassword: data.currentPassword, newPassword: data.newPassword },
-                { headers: authHeaders(), withCredentials: true }
+                { headers: adminAuthHeaders(), withCredentials: true }
             );
             return res.data;
         },

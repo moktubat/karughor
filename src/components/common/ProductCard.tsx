@@ -19,6 +19,7 @@ interface ProductCardProps {
     rating?: string;
     isLiked?: boolean;
     onToggleLike?: (id: string, e: React.MouseEvent) => void;
+    stock?: number;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -31,6 +32,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     rating = '4.8',
     isLiked = false,
     onToggleLike,
+    stock,
 }) => {
     const router = useRouter();
 
@@ -45,6 +47,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const handleCartClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+
+        if (stock !== undefined && stock === 0) return;
+
         addItem({
             id,
             name,
@@ -67,6 +72,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col h-full transition-transform hover:-translate-y-1"
         >
             <div className="relative bg-[#F6F6F6] w-full aspect-square group overflow-hidden">
+                {stock === 0 && (
+                    <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded z-20">
+                        Out of stock
+                    </span>
+                )}
+                
                 {discount && (
                     <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
                         {discount}
@@ -91,7 +102,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
                         <button
                             onClick={handleCartClick}
-                            className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]"
+                            disabled={stock !== undefined && stock === 0}
+                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]
+    ${(stock !== undefined && stock === 0) ? 'opacity-40 cursor-not-allowed' : ''}`}
                         >
                             <FaCartPlus />
                         </button>

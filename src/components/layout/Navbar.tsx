@@ -9,22 +9,9 @@ import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/lib/authService';
 import { categoryService } from '@/lib/categoryService';
 import { getCategoryIcon } from '@/lib/categoryIcons';
+import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import { useCartStore } from '@/store/cartStore';
 import { MdOutlineShoppingCart } from 'react-icons/md';
-
-// Shown instantly while the API warms up — replaced silently when real data arrives
-const STATIC_CATEGORIES = [
-    { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', subCategories: [] },
-    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', subCategories: [] },
-    { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', subCategories: [] },
-    { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', subCategories: [] },
-    { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', subCategories: [] },
-    { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils', subCategories: [] },
-    { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper', subCategories: [] },
-    { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt', subCategories: [] },
-    { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed', subCategories: [] },
-    { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle', subCategories: [] },
-];
 
 const Navbar: React.FC = () => {
     const router = useRouter();
@@ -121,7 +108,7 @@ const Navbar: React.FC = () => {
 
     return (
         <nav className="bg-white w-full shadow-sm sticky top-0 z-50">
-            <div className="max-w-300 mx-auto py-4 px-4 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
+            <div className="max-w-300 mx-auto py-4 px-4 md:px-0 flex items-center justify-between gap-6 flex-wrap md:flex-nowrap">
                 {/* Logo */}
                 <div
                     onClick={handleLogoClick}
@@ -170,9 +157,9 @@ const Navbar: React.FC = () => {
                                                     </span>
                                                 </Link>
 
-                                                {cat.subCategories && cat.subCategories.filter(s => s.isActive).length > 0 && (
+                                                {cat.subCategories && cat.subCategories.filter((s: any) => s.isActive).length > 0 && (
                                                     <div className="pl-14 pb-1">
-                                                        {cat.subCategories.filter(s => s.isActive).map((sub) => (
+                                                        {cat.subCategories.filter((s: any) => s.isActive).map((sub: any) => (
                                                             <Link
                                                                 key={sub._id}
                                                                 href={`/products?category=${cat.slug}&sub=${sub.slug}`}

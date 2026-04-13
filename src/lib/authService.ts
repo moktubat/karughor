@@ -22,19 +22,12 @@ export interface AdminLoginData {
 const TOKEN_KEY = 'user_token';
 const ADMIN_TOKEN_KEY = 'admin_token';
 
-const setToken = (token: string) => {
-    if (typeof window !== 'undefined') localStorage.setItem(TOKEN_KEY, token);
-};
 const getToken = (): string | null => {
     if (typeof window !== 'undefined') return localStorage.getItem(TOKEN_KEY);
     return null;
 };
-const removeToken = () => {
-    if (typeof window !== 'undefined') localStorage.removeItem(TOKEN_KEY);
-};
-const setAdminToken = (token: string) => {
-    if (typeof window !== 'undefined') localStorage.setItem(ADMIN_TOKEN_KEY, token);
-};
+
+
 const getAdminToken = (): string | null => {
     if (typeof window !== 'undefined') return localStorage.getItem(ADMIN_TOKEN_KEY);
     return null;
@@ -55,45 +48,62 @@ api.interceptors.request.use(
 
 export const authService = {
     register: async (data: RegisterData) => {
-        const response = await api.post('/auth/register', data);
-        if (response.data.success && response.data.data.user && response.data.data.token) {
-            setToken(response.data.data.token);
+        const response = await api.post('/auth/register', data, {
+            withCredentials: true,
+        });
+
+        if (response.data.success && response.data.data.user) {
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(TOKEN_KEY, 'true');
+            }
+
             useAuthStore.getState().setUser(response.data.data.user);
         }
+
         return response.data;
     },
 
     login: async (data: LoginData) => {
-        const response = await api.post('/auth/login', data);
-        if (response.data.success && response.data.data.user && response.data.data.token) {
-            setToken(response.data.data.token);
+        const response = await api.post('/auth/login', data, {
+            withCredentials: true,
+        });
+
+        if (response.data.success && response.data.data.user) {
+            localStorage.setItem(TOKEN_KEY, 'true');
+
             useAuthStore.getState().setUser(response.data.data.user);
         }
+
         return response.data;
     },
 
     logout: async () => {
         try {
-            await api.post('/auth/logout').catch(() => {});
+            await api.post('/auth/logout', {}, { withCredentials: true });
         } finally {
-            removeToken();
+            localStorage.removeItem(TOKEN_KEY);
             useAuthStore.getState().logout();
         }
         return { success: true };
     },
 
     adminLogin: async (data: AdminLoginData) => {
-        const response = await api.post('/auth/admin/login', data);
-        if (response.data.success && response.data.data.token && response.data.data.admin) {
-            setAdminToken(response.data.data.token);
+        const response = await api.post('/auth/admin/login', data, {
+            withCredentials: true,
+        });
+
+        if (response.data.success && response.data.data.admin) {
+            localStorage.setItem(ADMIN_TOKEN_KEY, 'true');
+
             useAuthStore.getState().setAdmin(response.data.data.admin);
         }
+
         return response.data;
     },
 
     adminLogout: async () => {
         try {
-            await api.post('/auth/admin/logout').catch(() => {});
+            await api.post('/auth/admin/logout').catch(() => { });
         } finally {
             removeAdminToken();
             useAuthStore.getState().adminLogout();

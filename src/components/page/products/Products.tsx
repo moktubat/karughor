@@ -7,25 +7,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { MdKeyboardArrowRight, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { useQuery } from '@tanstack/react-query';
 import { categoryService } from '@/lib/categoryService';
+import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import axios from 'axios';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 const ITEMS_PER_PAGE = 12;
-
-// Shown instantly while the API warms up — replaced silently when real data arrives
-const STATIC_CATEGORIES = [
-    { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket' },
-    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag' },
-    { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot' },
-    { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService' },
-    { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap' },
-    { _id: '6', name: 'Dining Placemats', slug: 'dining-placemats', icon: 'FaUtensils' },
-    { _id: '7', name: 'Wall Art', slug: 'wall-art', icon: 'MdWallpaper' },
-    { _id: '8', name: 'Three-Piece Sets', slug: 'three-piece-sets', icon: 'FaTshirt' },
-    { _id: '9', name: 'Bed Sheets', slug: 'bed-sheets', icon: 'FaBed' },
-    { _id: '10', name: 'Nakshi Kantha', slug: 'nakshi-kantha', icon: 'GiSewingNeedle' },
-];
 
 const fetchProducts = async (params: Record<string, string>) => {
     const res = await axios.get(`${API_URL}/products?${new URLSearchParams(params).toString()}`);
@@ -89,7 +76,7 @@ const Products = () => {
         setCurrentPage(1);
     };
 
-    const activeCatLabel = categories.find(c => c.slug === activeCategory)?.name || '';
+    const activeCatLabel = categories.find((c: any) => c.slug === activeCategory)?.name || '';
     const headingText = urlSearch
         ? `Showing results for "${urlSearch}"`
         : activeCatLabel
@@ -131,13 +118,16 @@ const Products = () => {
                                         <span className="text-[#818B9C] font-normal ml-1">({pagination.total})</span>
                                     )}
                                 </button>
-                                {categories.map((cat) => (
+                                {categories.map((cat: any) => (
                                     <button
                                         key={cat._id}
                                         onClick={() => handleCategoryClick(cat.slug)}
                                         className={`text-sm font-medium transition-colors text-left ${activeCategory === cat.slug ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
                                     >
                                         {cat.name}
+                                        {activeCategory === cat.slug && pagination && (
+                                            <span className="text-[#818B9C] font-normal ml-1">({pagination.total})</span>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -197,6 +187,7 @@ const Products = () => {
                                         rating={product.rating}
                                         isLiked={likedProducts.has(product._id)}
                                         onToggleLike={toggleLike}
+                                        stock={product.stock}
                                     />
                                 ))}
                             </div>

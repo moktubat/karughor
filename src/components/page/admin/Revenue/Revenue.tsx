@@ -11,15 +11,13 @@ import {
     FaCalendarAlt,
     FaTruck,
 } from 'react-icons/fa';
+import { adminAuthHeaders } from '@/lib/adminAuth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 type Period = 'today' | 'week' | 'month' | 'year';
 
-function getAdminToken() {
-    if (typeof window === 'undefined') return '';
-    try { return localStorage.getItem('admin_token') || ''; } catch { return ''; }
-}
+
 
 const Revenue = () => {
     const [selectedPeriod, setSelectedPeriod] = useState<Period>('month');
@@ -27,9 +25,8 @@ const Revenue = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['admin-revenue', selectedPeriod],
         queryFn: async () => {
-            const token = getAdminToken();
             const res = await axios.get(`${API_URL}/admin/revenue/stats?period=${selectedPeriod}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             return res.data.data;
@@ -40,9 +37,8 @@ const Revenue = () => {
     const { data: ordersData } = useQuery({
         queryKey: ['admin-orders-summary'],
         queryFn: async () => {
-            const token = getAdminToken();
             const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: adminAuthHeaders(),
                 withCredentials: true,
             });
             const orders = res.data.data.orders as any[];
