@@ -3,13 +3,18 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FaCheckCircle, FaHome, FaShoppingBag } from 'react-icons/fa';
+import { useToast } from '@/hooks/useToast';
+import { FaCopy } from 'react-icons/fa';
+import { Toast } from '@/components/common/Toast';
 
 const OrderSuccessPage = () => {
     const searchParams = useSearchParams();
-    const orderId = searchParams.get('orderId') || '';
+    const orderNumber = searchParams.get('orderNumber') || '';
+    const { toast, showSuccess } = useToast();
 
     return (
         <div className="bg-white w-full min-h-screen flex items-center justify-center px-4 py-16">
+            {toast && <Toast message={toast.message} type={toast.type} />}
             <div className="max-w-md w-full text-center">
 
                 {/* Tick icon */}
@@ -27,13 +32,31 @@ const OrderSuccessPage = () => {
                     Thank you for shopping with Karughor. Your order has been received.
                 </p>
 
-                {orderId && orderId !== 'N/A' && (
-                    <p className="text-sm text-[#818B9C] mb-8">
-                        Order ID:{' '}
-                        <span className="font-semibold text-[#0B0F0E] font-mono">
-                            {orderId.slice(-8).toUpperCase()}
-                        </span>
-                    </p>
+                {orderNumber && (
+                    <div className="flex items-center justify-center gap-2 mb-8">
+                        <p className="text-sm text-[#818B9C]">
+                            Order No:{' '}
+                            <span className="font-semibold text-[#0B0F0E] font-mono">
+                                {orderNumber}
+                            </span>
+                        </p>
+
+                        <button
+                            title="Copy order number"
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(orderNumber);
+                                    showSuccess('Order number copied!');
+                                } catch {
+                                    showSuccess('Copy failed');
+                                }
+                            }}
+                            className="flex items-center gap-1 text-xs px-2 py-1 border border-[#E4E9EE] rounded hover:border-[#C85A3A] hover:text-[#C85A3A] transition-all"
+                        >
+                            <FaCopy />
+                            Copy
+                        </button>
+                    </div>
                 )}
 
                 {/* Info box */}

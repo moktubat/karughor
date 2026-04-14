@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { authService } from '@/lib/authService';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -16,12 +15,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!hydrated) return;
-        if (!authService.isAuthenticated() && !isAuthenticated) {
+
+        if (!isAuthenticated) {
             router.replace('/login?redirect=/profile');
         }
     }, [hydrated, isAuthenticated, router]);
 
-    // Wait for hydration before making auth decisions
     if (!hydrated) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -30,7 +29,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         );
     }
 
-    if (!isAuthenticated && !authService.isAuthenticated()) {
+    if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-lg text-gray-600">Checking authentication...</div>

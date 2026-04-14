@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { useLikedProducts } from '../../../hooks/useLikedProducts';
 import { ProductCard } from '@/components/common/ProductCard';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 const INITIAL_DISPLAY = 12;
 const LOAD_MORE_COUNT = 8;
@@ -20,7 +19,7 @@ const ProductsSection = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['popular-products'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products?limit=20&sort=-createdAt`);
+            const res = await api.get('/products?limit=20&sort=-createdAt');
             return res.data.data.products;
         },
         staleTime: 2 * 60 * 1000,

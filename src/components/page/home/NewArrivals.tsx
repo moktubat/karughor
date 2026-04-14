@@ -2,11 +2,10 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '../../../hooks/useLikedProducts';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 const NewArrivals = () => {
     const { likedProducts, toggleLike } = useLikedProducts();
@@ -14,13 +13,14 @@ const NewArrivals = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['new-arrivals'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products?limit=4&sort=-createdAt`);
+            const res = await api.get('/products?limit=4&sort=-createdAt');
             return res.data.data.products;
         },
         staleTime: 2 * 60 * 1000,
     });
 
     const products = data || [];
+
 
     return (
         <section className="bg-[#F7F7F7] py-12">

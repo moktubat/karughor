@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import {
     FaSearch, FaEye, FaPhone, FaMapMarkerAlt,
-    FaCheckCircle, FaTruck, FaTimes, FaSpinner,
+    FaTimes, FaSpinner,
 } from 'react-icons/fa';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
@@ -43,6 +43,8 @@ const OrdersManagement = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
     // ── Fetch orders ──────────────────────────────────────────────────────────
     const { data, isLoading } = useQuery({
@@ -61,6 +63,7 @@ const OrdersManagement = () => {
             });
             return res.data.data;
         },
+
     });
 
     const orders = data?.orders || [];
@@ -85,30 +88,53 @@ const OrdersManagement = () => {
             : (allData?.filter((o: any) => o.status === status).length ?? 0);
 
     // ── Update status mutation ─────────────────────────────────────────────────
-    const { mutate: updateStatus, isPending: updating } = useMutation({
-        mutationFn: ({ orderId, status }: { orderId: string; status: string }) =>
-            axios.patch(
+    const { mutate: updateStatus } = useMutation({
+        mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+            setUpdatingId(orderId);
+            setUpdatingStatus(status);
+            return axios.patch(
                 `${API_URL}/orders/${orderId}/status`,
                 { status },
                 { withCredentials: true }
-            ),
+            );
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
             queryClient.invalidateQueries({ queryKey: ['admin-orders-counts'] });
             queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
             setSelectedOrder(null);
         },
+        onError: (err) => {
+            console.error("Status update failed:", err);
+            alert("Failed to update order status");
+        },
+        onSettled: () => {
+            setUpdatingId(null);
+            setUpdatingStatus(null);
+        }
     });
 
     // ── Search debounce ───────────────────────────────────────────────────────
-    let searchTimer: ReturnType<typeof setTimeout>;
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const handleSearchChange = (val: string) => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-            setSearchQuery(val);
-            setPage(1);
+        if (searchTimerRef.current) {
+            clearTimeout(searchTimerRef.current);
+        }
+
+        searchTimerRef.current = setTimeout(() => {
+            setSearchQuery(val.trim());
+            setPage(() => 1);
         }, 400);
     };
+
+    useEffect(() => {
+        return () => {
+            if (searchTimerRef.current) {
+                clearTimeout(searchTimerRef.current);
+            }
+        };
+    }, []);
 
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
@@ -128,14 +154,14 @@ const OrdersManagement = () => {
                                 key={opt.value}
                                 onClick={() => { setSelectedStatus(opt.value); setPage(1); }}
                                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${selectedStatus === opt.value
-                                        ? 'bg-[#C85A3A] text-white'
-                                        : 'text-[#818B9C] hover:bg-[#F7F7F7]'
+                                    ? 'bg-[#C85A3A] text-white'
+                                    : 'text-[#818B9C] hover:bg-[#F7F7F7]'
                                     }`}
                             >
                                 {opt.label}
                                 <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${selectedStatus === opt.value
-                                        ? 'bg-white/20 text-white'
-                                        : 'bg-[#F7F7F7] text-[#818B9C]'
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-[#F7F7F7] text-[#818B9C]'
                                     }`}>
                                     {countByStatus(opt.value)}
                                 </span>
@@ -149,6 +175,7 @@ const OrdersManagement = () => {
                     <div className="relative max-w-md">
                         <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#818B9C]" />
                         <input
+                            disabled={isLoading}
                             type="text"
                             placeholder="Search by order #, customer, or phone..."
                             onChange={(e) => handleSearchChange(e.target.value)}
@@ -226,12 +253,22 @@ const OrdersManagement = () => {
                                                     {/* Quick advance status */}
                                                     {NEXT_STATUS[order.status] && (
                                                         <button
-                                                            onClick={() => updateStatus({ orderId: order._id, status: NEXT_STATUS[order.status] })}
-                                                            disabled={updating}
+                                                            onClick={() =>
+                                                                updateStatus({
+                                                                    orderId: order._id,
+                                                                    status: NEXT_STATUS[order.status]
+                                                                })
+                                                            }
+                                                            disabled={updatingId === order._id}
                                                             className="px-3 py-1.5 bg-[#C85A3A] text-white text-xs font-semibold rounded-lg hover:bg-[#A84830] transition-all disabled:opacity-50 whitespace-nowrap"
-                                                            title={`Mark as ${NEXT_STATUS[order.status]}`}
                                                         >
-                                                            → {NEXT_STATUS[order.status].charAt(0).toUpperCase() + NEXT_STATUS[order.status].slice(1)}
+                                                            {updatingId === order._id ? (
+                                                                <FaSpinner className="animate-spin inline mr-1" />
+                                                            ) : (
+                                                                '→'
+                                                            )}
+                                                            {NEXT_STATUS[order.status].charAt(0).toUpperCase() +
+                                                                NEXT_STATUS[order.status].slice(1)}
                                                         </button>
                                                     )}
                                                 </div>
@@ -375,13 +412,20 @@ const OrdersManagement = () => {
                                         <button
                                             key={s}
                                             onClick={() => updateStatus({ orderId: selectedOrder._id, status: s })}
-                                            disabled={updating || selectedOrder.status === s || selectedOrder.status === 'delivered' || selectedOrder.status === 'cancelled'}
+                                            disabled={
+                                                updatingId === selectedOrder._id ||
+                                                selectedOrder.status === s ||
+                                                selectedOrder.status === 'delivered' ||
+                                                selectedOrder.status === 'cancelled'
+                                            }
                                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${selectedOrder.status === s
-                                                    ? 'bg-[#C85A3A] text-white cursor-default'
-                                                    : 'border border-[#C85A3A] text-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
+                                                ? 'bg-[#C85A3A] text-white cursor-default'
+                                                : 'border border-[#C85A3A] text-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
                                                 }`}
                                         >
-                                            {updating ? <FaSpinner className="animate-spin inline mr-1" /> : null}
+                                            {updatingStatus === s ? (
+                                                <FaSpinner className="animate-spin inline mr-1" />
+                                            ) : null}
                                             {s.charAt(0).toUpperCase() + s.slice(1)}
                                         </button>
                                     ))}

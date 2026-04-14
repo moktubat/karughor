@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from '@/components/common/Toast';
 
 export default function BackendWarmup() {
+    const { toast, showError } = useToast();
+
     useEffect(() => {
-        // Only fire once per browser session
+        if (typeof window === 'undefined') return;
         if (sessionStorage.getItem('backend_warmed')) return;
 
         const controller = new AbortController();
+
         const timeout = setTimeout(() => {
             controller.abort();
         }, 10000);
@@ -19,12 +24,24 @@ export default function BackendWarmup() {
                 sessionStorage.setItem('backend_warmed', '1');
             })
             .catch((err) => {
-                if (err.name !== 'AbortError') {
-                    console.warn('⚠️ [Warmup] Failed:', err);
+                if (err.name === 'AbortError') return;
+
+                if (!sessionStorage.getItem('warmup_toast_shown')) {
+                    showError('Waking up server, please wait...');
+                    sessionStorage.setItem('warmup_toast_shown', '1');
                 }
             })
             .finally(() => clearTimeout(timeout));
-    }, []);
 
-    return null;
+        return () => {
+            clearTimeout(timeout);
+            controller.abort();
+        };
+    }, [showError]);
+
+    return (
+        <>
+            {toast && <Toast message={toast.message} type={toast.type} />}
+        </>
+    );
 }

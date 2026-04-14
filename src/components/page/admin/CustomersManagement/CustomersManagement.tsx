@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import {
     FaSearch,
     FaPhone,
@@ -12,9 +11,7 @@ import {
     FaExclamationTriangle,
 } from 'react-icons/fa';
 import { adminAuthHeaders } from '@/lib/adminAuth';
-
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+import api from '@/lib/api';
 
 
 interface DerivedCustomer {
@@ -36,11 +33,10 @@ const CustomersManagement = () => {
     const { data: ordersRaw, isLoading } = useQuery({
         queryKey: ['admin-all-orders-for-customers'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
+            const res = await api.get('/orders/admin/all?limit=1000', {
                 headers: adminAuthHeaders(),
-                withCredentials: true,
             });
-            return res.data.data.orders as any[];
+            return res.data.data.orders;
         },
         staleTime: 60_000,
     });
@@ -219,8 +215,8 @@ const CustomersManagement = () => {
                                             <td className="py-4 px-4 text-center">
                                                 {customer.cancelledOrders > 0 ? (
                                                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${customer.cancelledOrders >= 3
-                                                            ? 'bg-red-100 text-red-700'
-                                                            : 'bg-orange-100 text-orange-700'
+                                                        ? 'bg-red-100 text-red-700'
+                                                        : 'bg-orange-100 text-orange-700'
                                                         }`}>
                                                         {customer.cancelledOrders}
                                                     </span>

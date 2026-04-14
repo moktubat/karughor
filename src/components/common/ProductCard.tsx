@@ -8,6 +8,9 @@ import { FaCartPlus, FaHeart } from 'react-icons/fa6';
 import Image from 'next/image';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { useCartStore } from '@/store/cartStore';
+import { useToast } from '@/hooks/useToast';
+import { Toast } from './Toast';
+
 
 interface ProductCardProps {
     id: string;
@@ -34,6 +37,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onToggleLike,
     stock,
 }) => {
+    const { toast, showError } = useToast();
     const router = useRouter();
 
     const handleLikeClick = (e: React.MouseEvent) => {
@@ -42,20 +46,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         onToggleLike?.(id, e);
     };
 
-    const addItem = useCartStore((s) => s.addItem);
+    const { addItem, items } = useCartStore();
 
     const handleCartClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (stock !== undefined && stock === 0) return;
+        if (stock !== undefined) {
+            const existingItem = items.find((item) => item.id === id);
+            const currentQty = existingItem?.quantity || 0;
+
+            if (stock === 0) return;
+
+            if (currentQty >= stock) {
+                showError('Stock limit reached');
+                return;
+            }
+        }
 
         addItem({
             id,
             name,
             image,
             price: Number(salePrice.replace(/[^\d.]/g, '')),
-            originalPrice: originalPrice ? Number(originalPrice.replace(/[^\d.]/g, '')) : undefined,
+            originalPrice: originalPrice
+                ? Number(originalPrice.replace(/[^\d.]/g, ''))
+                : undefined,
             category: '',
         });
     };
@@ -67,71 +83,74 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     };
 
     return (
-        <Link
-            href={`/products/${id}`}
-            className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col h-full transition-transform hover:-translate-y-1"
-        >
-            <div className="relative bg-[#F6F6F6] w-full aspect-square group overflow-hidden">
-                {stock === 0 && (
-                    <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded z-20">
-                        Out of stock
-                    </span>
-                )}
-                
-                {discount && (
-                    <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
-                        {discount}
-                    </div>
-                )}
-                <Image
-                    src={image}
-                    alt={name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                />
-                <div className="absolute inset-0 bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100 rounded-lg cursor-pointer">
-                    <div className="flex justify-end p-3">
-                        <button
-                            onClick={handleLikeClick}
-                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer ${isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'}`}
-                        >
-                            {isLiked ? <FaHeart /> : <FaRegHeart />}
-                        </button>
-                    </div>
-                    <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
-                        <button
-                            onClick={handleCartClick}
-                            disabled={stock !== undefined && stock === 0}
-                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]
+        <div>
+            {toast && <Toast message={toast.message} type={toast.type} />}
+            <Link
+                href={`/products/${id}`}
+                className="relative cursor-pointer border border-[#E4E9EE] rounded-lg overflow-hidden bg-white flex flex-col h-full transition-transform hover:-translate-y-1"
+            >
+                <div className="relative bg-[#F6F6F6] w-full aspect-square group overflow-hidden">
+                    {stock === 0 && (
+                        <span className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded z-20">
+                            Out of stock
+                        </span>
+                    )}
+
+                    {discount && (
+                        <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
+                            {discount}
+                        </div>
+                    )}
+                    <Image
+                        src={image}
+                        alt={name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 transition-all duration-300 group-hover:opacity-100 rounded-lg cursor-pointer">
+                        <div className="flex justify-end p-3">
+                            <button
+                                onClick={handleLikeClick}
+                                className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer ${isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'}`}
+                            >
+                                {isLiked ? <FaHeart /> : <FaRegHeart />}
+                            </button>
+                        </div>
+                        <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
+                            <button
+                                onClick={handleCartClick}
+                                disabled={stock !== undefined && stock === 0}
+                                className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]
     ${(stock !== undefined && stock === 0) ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        >
-                            <FaCartPlus />
-                        </button>
-                        <button
-                            onClick={handleViewClick}
-                            className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]"
-                        >
-                            <MdOutlineRemoveRedEye />
-                        </button>
+                            >
+                                <FaCartPlus />
+                            </button>
+                            <button
+                                onClick={handleViewClick}
+                                className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer text-[#818B9C] hover:text-[#C85A3A]"
+                            >
+                                <MdOutlineRemoveRedEye />
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div className="flex flex-col flex-1 p-4 gap-2">
-                <p className="text-base font-semibold text-[#0B0F0E] line-clamp-2 flex-1">{name}</p>
-                <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2">
-                        {originalPrice && (
-                            <span className="text-sm text-[#818B9C] line-through">{originalPrice}</span>
-                        )}
-                        <span className="text-base font-bold text-[#C85A3A]">{salePrice}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-amber-400">
-                        <FaRegStar className="w-4 h-4" />
-                        <span className="text-sm text-[#818B9C]">{rating}</span>
+                <div className="flex flex-col flex-1 p-4 gap-2">
+                    <p className="text-base font-semibold text-[#0B0F0E] line-clamp-2 flex-1">{name}</p>
+                    <div className="flex items-center justify-between mt-auto">
+                        <div className="flex items-center gap-2">
+                            {originalPrice && (
+                                <span className="text-sm text-[#818B9C] line-through">{originalPrice}</span>
+                            )}
+                            <span className="text-base font-bold text-[#C85A3A]">{salePrice}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-amber-400">
+                            <FaRegStar className="w-4 h-4" />
+                            <span className="text-sm text-[#818B9C]">{rating}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </Link>
+            </Link>
+        </div>
     );
 };

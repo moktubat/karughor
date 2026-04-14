@@ -2,18 +2,17 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import Link from 'next/link';
 import {
     FaShoppingCart, FaMoneyBillWave,
     FaBoxOpen, FaExclamationTriangle,
     FaTruck, FaCheckCircle, FaTimes,
 } from 'react-icons/fa';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 const fetcher = (url: string) =>
-    axios.get(url, { withCredentials: true }).then((r) => r.data.data);
+    api.get(url).then((r) => r.data.data);
 
 const getStatusBadge = (status: string) => {
     const badges: Record<string, string> = {
@@ -51,12 +50,12 @@ const StatSkeleton = () => (
 const Dashboard = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['admin-dashboard'],
-        queryFn: () => fetcher(`${API_URL}/admin/dashboard/stats`),
+        queryFn: () => fetcher('/admin/dashboard/stats'),
         refetchInterval: 60_000,
     });
 
-    const stats = data?.stats;
-    const recentOrders: any[] = data?.recentOrders || [];
+    const stats = data?.stats ?? {};
+    const recentOrders = data?.recentOrders ?? [];
 
     const statCards = stats
         ? [

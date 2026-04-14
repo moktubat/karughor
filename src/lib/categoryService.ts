@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+import api from '@/lib/api';
 
 export interface SubCategory {
     _id: string;
@@ -23,12 +21,12 @@ export interface Category {
 // Public
 export const categoryService = {
     getAll: async (): Promise<Category[]> => {
-        const res = await axios.get(`${API_URL}/categories`);
+        const res = await api.get('/categories');
         return res.data.data.categories;
     },
 
     getBySlug: async (slug: string): Promise<Category> => {
-        const res = await axios.get(`${API_URL}/categories/${slug}`);
+        const res = await api.get(`/categories/${slug}`);
         return res.data.data.category;
     },
 };

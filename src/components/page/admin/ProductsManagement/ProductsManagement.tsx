@@ -54,6 +54,7 @@ const ProductsManagement = () => {
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast, showSuccess, showError } = useToast();
+    const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ['admin-products'],
@@ -301,7 +302,13 @@ const ProductsManagement = () => {
                                             <td className="py-4 px-4">
                                                 <div className="flex items-center justify-center gap-2">
                                                     <button onClick={() => openEditModal(product)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><FaEdit /></button>
-                                                    <button onClick={() => { if (confirm('Delete this product?')) deleteMutation.mutate(product._id); }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><FaTrash /></button>
+                                                    <button
+                                                        onClick={() => setDeleteId(product._id)}
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -420,6 +427,39 @@ const ProductsManagement = () => {
                 )}
             </div>
             {toast && <Toast message={toast.message} type={toast.type} />}
+            {deleteId && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+
+                        <h2 className="text-lg font-bold text-[#0B0F0E] mb-2">
+                            Delete Product?
+                        </h2>
+
+                        <p className="text-sm text-[#818B9C] mb-6">
+                            This action cannot be undone.
+                        </p>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteId(null)}
+                                className="px-4 py-2 border border-[#E4E9EE] rounded-lg"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    deleteMutation.mutate(deleteId);
+                                    setDeleteId(null);
+                                }}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

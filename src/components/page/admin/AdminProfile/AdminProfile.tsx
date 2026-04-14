@@ -3,13 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { FaUser, FaEnvelope, FaLock, FaStore, FaPhone, FaCamera, FaSpinner } from 'react-icons/fa';
 import { adminAuthHeaders } from '@/lib/adminAuth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
-
-
+import api from '@/lib/api';
 
 interface ProfileFormValues {
     fullName: string;
@@ -40,9 +36,8 @@ const AdminProfile = () => {
     const { data: adminData, isLoading } = useQuery({
         queryKey: ['admin-profile'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/admin/profile`, {
+            const res = await api.get('/admin/profile', {
                 headers: adminAuthHeaders(),
-                withCredentials: true,
             });
             return res.data.data.admin;
         },
@@ -68,11 +63,12 @@ const AdminProfile = () => {
 
     const updateProfileMutation = useMutation({
         mutationFn: async (data: ProfileFormValues) => {
-            const res = await axios.put(
-                `${API_URL}/admin/profile`,
-                { fullName: data.fullName, phone: data.phone },
-                { headers: adminAuthHeaders(), withCredentials: true }
-            );
+            const res = await api.put('/admin/profile', {
+                fullName: data.fullName,
+                phone: data.phone,
+            }, {
+                headers: adminAuthHeaders(),
+            });
             return res.data;
         },
         onSuccess: () => {
@@ -105,17 +101,15 @@ const AdminProfile = () => {
 
     const updateStoreMutation = useMutation({
         mutationFn: async (data: StoreFormValues) => {
-            const res = await axios.put(
-                `${API_URL}/admin/profile`,
-                {
-                    storeInfo: {
-                        name: data.storeName,
-                        email: data.storeEmail,
-                        phone: data.storePhone,
-                        address: data.storeAddress,
-                    },
+            const res = await api.put('/admin/profile', {
+                storeInfo: {
+                    name: data.storeName,
+                    email: data.storeEmail,
+                    phone: data.storePhone,
+                    address: data.storeAddress,
                 },
-                { headers: adminAuthHeaders(), withCredentials: true }
+            },
+                { headers: adminAuthHeaders(), }
             );
             return res.data;
         },
@@ -141,11 +135,12 @@ const AdminProfile = () => {
 
     const changePasswordMutation = useMutation({
         mutationFn: async (data: PasswordFormValues) => {
-            const res = await axios.put(
-                `${API_URL}/admin/profile/password`,
-                { currentPassword: data.currentPassword, newPassword: data.newPassword },
-                { headers: adminAuthHeaders(), withCredentials: true }
-            );
+            const res = await api.put('/admin/profile/password', {
+                currentPassword: data.currentPassword,
+                newPassword: data.newPassword,
+            }, {
+                headers: adminAuthHeaders(),
+            });
             return res.data;
         },
         onSuccess: () => {

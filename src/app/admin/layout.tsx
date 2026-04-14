@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fa';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/lib/authService';
+import api from '@/lib/api';
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -28,6 +29,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [authChecked, setAuthChecked] = useState(false);
+
     const pathname = usePathname();
     const router = useRouter();
     const { admin } = useAuthStore();
@@ -37,19 +39,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        if (!mounted) return;
+        const checkAuth = async () => {
+            try {
+                await api.get('/auth/admin/me', { withCredentials: true });
+                setAuthChecked(true);
+            } catch (err) {
+                router.replace('/admin/login');
+            }
+        };
 
-        if (pathname === '/admin/login') {
-            setAuthChecked(true);
-            return;
-        }
-
-        const hasAdminToken = authService.isAdminAuthenticated();
-
-        if (!hasAdminToken) {
-            router.replace('/admin/login');
-        } else {
-            setAuthChecked(true);
+        if (mounted && pathname !== '/admin/login') {
+            checkAuth();
         }
     }, [mounted, pathname, router]);
 
@@ -60,7 +60,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (!mounted) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
-                <div className="text-lg text-[#818B9C]">Loading...</div>
+                <div className="text-[#818B9C]">Loading...</div>
             </div>
         );
     }
@@ -68,7 +68,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (!authChecked) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
-                <div className="text-lg text-[#818B9C]">Verifying access...</div>
+                <div className="text-[#818B9C]">Verifying access...</div>
             </div>
         );
     }
@@ -97,20 +97,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
     return (
         <div className="w-full min-h-screen bg-[#F7F7F7]">
-            <div className="lg:hidden bg-white border-b border-[#E4E9EE] px-4 py-4 flex items-center justify-between sticky top-0 z-50">
+            {/* Mobile Header */}
+            <div className="lg:hidden bg-white border-b border-[#E4E9EE] px-4 py-4 flex justify-between items-center sticky top-0 z-50">
                 <h1 className="text-xl font-bold text-[#0B0F0E]">Admin Panel</h1>
-                <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="p-2 hover:bg-[#F7F7F7] rounded-lg transition-colors"
-                >
-                    {sidebarOpen ? <FaTimes className="w-6 h-6" /> : <FaBars className="w-6 h-6" />}
+                <button onClick={() => setSidebarOpen(!sidebarOpen)}>
+                    {sidebarOpen ? <FaTimes /> : <FaBars />}
                 </button>
             </div>
 
             <div className="flex max-w-350 mx-auto">
+                {/* Sidebar */}
                 <aside
-                    className={`fixed lg:sticky top-0 left-0 h-screen bg-white border-r border-[#E4E9EE] transition-transform duration-300 z-40 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-                        } w-56`}
+                    className={`fixed lg:sticky top-0 left-0 h-screen bg-white border-r border-[#E4E9EE] transition-transform duration-300 z-40 w-56
+                    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
                 >
                     <div className="h-full flex flex-col">
                         <div className="p-4 border-b border-[#E4E9EE]">
@@ -120,7 +119,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             </p>
                         </div>
 
-                        <nav className="flex-1 overflow-y-auto py-4 px-4">
+                        <nav className="flex-1 py-4 px-4 overflow-y-auto">
                             <ul className="space-y-2">
                                 {menuItems.map((item) => {
                                     const Icon = item.icon;
@@ -129,13 +128,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                             <Link
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
-                                                className={`flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all ${isActive(item.href)
+                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive(item.href)
                                                         ? 'bg-[#C85A3A] text-white'
                                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}
                                             >
-                                                <Icon className="w-5 h-5" />
-                                                <span className="font-medium">{item.name}</span>
+                                                <Icon />
+                                                {item.name}
                                             </Link>
                                         </li>
                                     );
@@ -147,17 +146,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                             <button
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
-                                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
+                                className="w-full flex items-center gap-3 text-red-600 hover:bg-red-50 px-4 py-3 rounded-lg"
                             >
-                                <FaSignOutAlt className="w-5 h-5" />
-                                <span className="font-medium">
-                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
-                                </span>
+                                <FaSignOutAlt />
+                                {isLoggingOut ? 'Logging out...' : 'Logout'}
                             </button>
                         </div>
                     </div>
                 </aside>
 
+                {/* Overlay */}
                 {sidebarOpen && (
                     <div
                         className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -165,6 +163,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     />
                 )}
 
+                {/* Main */}
                 <main className="flex-1 min-h-screen">{children}</main>
             </div>
         </div>

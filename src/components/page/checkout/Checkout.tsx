@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdKeyboardArrowRight } from 'react-icons/md';
 import { FaMapMarkerAlt, FaPhone, FaUser, FaEnvelope, FaSpinner } from 'react-icons/fa';
-import axios from 'axios';
 import Link from 'next/link';
 import { useCartStore } from '@/store/cartStore';
 import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 interface CheckoutFormValues {
     fullName: string;
@@ -46,7 +45,7 @@ const Checkout = () => {
     const { data: settingsData } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/settings`);
+            const res = await api.get('/settings');
             return res.data.data.settings;
         },
         staleTime: 5 * 60_000,
@@ -77,28 +76,44 @@ const Checkout = () => {
     const onSubmit = async (data: CheckoutFormValues) => {
         setLoading(true);
         setError('');
-        try {
-            const res = await axios.post(`${API_URL}/orders/guest`, {
-                customer: {
-                    name: data.fullName,
-                    phone: data.phone,
-                    email: data.email || '',
-                    address: {
-                        street: data.address,
-                        area: data.area,
-                        city: data.city,
-                        deliveryLocation: data.deliveryLocation,
-                    },
-                },
-                items: items.map(i => ({ productId: i.id, quantity: i.quantity })),
-                notes: data.notes || '',
-            }, { withCredentials: true });
 
-            const orderId = res.data?.data?.order?._id || res.data?.data?._id || 'N/A';
+        try {
+            const res = await api.post(
+                '/orders/guest',
+                {
+                    customer: {
+                        name: data.fullName,
+                        phone: data.phone,
+                        email: data.email || '',
+                        address: {
+                            street: data.address,
+                            area: data.area,
+                            city: data.city,
+                            deliveryLocation: data.deliveryLocation,
+                        },
+                    },
+                    items: items.map(i => ({
+                        productId: i.id,
+                        quantity: i.quantity,
+                    })),
+                    notes: data.notes || '',
+                },
+            );
+
+            const orderNumber =
+                res.data?.data?.order?.orderNumber || '';
+
             clearCart();
-            router.push(`/order-success?orderId=${orderId}`);
+
+            router.push(`/order-success?orderNumber=${orderNumber}`);
+
         } catch (err: any) {
-            setError(err.response?.data?.error?.message || err.response?.data?.message || 'Failed to place order. Please try again.');
+            setError(
+                err.response?.data?.error?.message ||
+                err.response?.data?.message ||
+                'Failed to place order. Please try again.'
+            );
+        } finally {
             setLoading(false);
         }
     };

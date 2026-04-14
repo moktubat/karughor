@@ -23,7 +23,10 @@ const TOKEN_KEY = 'user_token';
 const ADMIN_TOKEN_KEY = 'admin_token';
 
 const getToken = (): string | null => {
-    if (typeof window !== 'undefined') return localStorage.getItem(TOKEN_KEY);
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem(TOKEN_KEY);
+        return token && token !== 'true' ? token : null;
+    }
     return null;
 };
 
@@ -69,7 +72,8 @@ export const authService = {
         });
 
         if (response.data.success && response.data.data.user) {
-            localStorage.setItem(TOKEN_KEY, 'true');
+            const token = response.data.token;
+            localStorage.setItem(TOKEN_KEY, token);
 
             useAuthStore.getState().setUser(response.data.data.user);
         }
@@ -93,7 +97,8 @@ export const authService = {
         });
 
         if (response.data.success && response.data.data.admin) {
-            localStorage.setItem(ADMIN_TOKEN_KEY, 'true');
+            const token = response.data.token;
+            localStorage.setItem(ADMIN_TOKEN_KEY, token);
 
             useAuthStore.getState().setAdmin(response.data.data.admin);
         }
