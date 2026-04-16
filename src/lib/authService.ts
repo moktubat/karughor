@@ -19,24 +19,15 @@ export interface AdminLoginData {
     password: string;
 }
 
-const TOKEN_KEY = 'user_token';
+const USER_TOKEN_KEY = 'user_token';
 const ADMIN_TOKEN_KEY = 'admin_token';
 
-// ================= USER TOKEN =================
-const getToken = (): string | null => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem(TOKEN_KEY);
-    }
-    return null;
-};
+// ================= TOKEN HELPERS =================
+export const getUserToken = () =>
+    typeof window !== 'undefined' ? localStorage.getItem(USER_TOKEN_KEY) : null;
 
-// ================= ADMIN TOKEN =================
-export const getAdminToken = (): string | null => {
-    if (typeof window !== 'undefined') {
-        return localStorage.getItem(ADMIN_TOKEN_KEY);
-    }
-    return null;
-};
+export const getAdminToken = () =>
+    typeof window !== 'undefined' ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
 
 export const setAdminToken = (token: string) => {
     if (typeof window !== 'undefined') {
@@ -50,21 +41,29 @@ export const removeAdminToken = () => {
     }
 };
 
-// ================= INTERCEPTOR =================
-api.interceptors.request.use(
-    (config) => {
-        const isAdminRoute = config.url?.includes('/admin');
+// ================= INTERCEPTOR (FIXED) =================
+api.interceptors.request.use((config) => {
+    const url = config.url || '';
 
-        const token = isAdminRoute ? getAdminToken() : getToken();
+    // ❌ NEVER attach token for login requests
+    const isLoginRequest =
+        url.includes('/auth/login') ||
+        url.includes('/auth/admin/login');
 
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`; // 🔥 REQUIRED FOR MIDDLEWARE
-        }
+    if (isLoginRequest) return config;
 
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
+    const isAdminRequest = url.includes('/admin');
+
+    const token = isAdminRequest
+        ? getAdminToken()
+        : getUserToken();
+
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+});
 
 // ================= SERVICE =================
 export const authService = {
@@ -74,9 +73,9 @@ export const authService = {
             withCredentials: true,
         });
 
-        if (response.data.success && response.data.data.user) {
-            localStorage.setItem(TOKEN_KEY, 'true'); // you kept cookie-based auth
-            useAuthStore.getState().setUser(response.data.data.user);
+        if (response.data.success) {
+            const user = response.data.data?.user;
+            useAuthStore.getState().setUser(user);
         }
 
         return response.data;
@@ -87,21 +86,23 @@ export const authService = {
             withCredentials: true,
         });
 
-        if (response.data.success && response.data.data.user) {
-            const token = response.data.data.token; // ✅ FIXED
-            localStorage.setItem(TOKEN_KEY, token);
+        const res = response.data;
 
-            useAuthStore.getState().setUser(response.data.data.user);
+        const token = res?.data?.token || res?.token;
+
+        if (res.success && token) {
+            localStorage.setItem(USER_TOKEN_KEY, token);
+            useAuthStore.getState().setUser(res.data?.user || res.user);
         }
 
-        return response.data;
+        return res;
     },
 
     logout: async () => {
         try {
             await api.post('/auth/logout', {}, { withCredentials: true });
         } finally {
-            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_TOKEN_KEY);
             useAuthStore.getState().logout();
         }
         return { success: true };
@@ -113,20 +114,23 @@ export const authService = {
             withCredentials: true,
         });
 
-        if (response.data.success && response.data.data.admin) {
-            const token = response.data.data.token; // ✅ FIXED (IMPORTANT)
+        const res = response.data;
 
-            setAdminToken(token); // 🔥 REQUIRED FOR MIDDLEWARE
+        // SAFE TOKEN EXTRACTION (FIXED BUG)
+        const token = res?.data?.token;
 
-            useAuthStore.getState().setAdmin(response.data.data.admin);
+        if (res.success && token) {
+            localStorage.setItem('admin_token', token);
+
+            useAuthStore.getState().setAdmin(res.data.admin);
         }
 
-        return response.data;
+        return res;
     },
 
     adminLogout: async () => {
         try {
-            await api.post('/auth/admin/logout').catch(() => {});
+            await api.post('/auth/admin/logout').catch(() => { });
         } finally {
             removeAdminToken();
             useAuthStore.getState().adminLogout();
@@ -135,9 +139,9 @@ export const authService = {
     },
 
     // ---------- HELPERS ----------
-    isAuthenticated: (): boolean => !!getToken(),
-    isAdminAuthenticated: (): boolean => !!getAdminToken(),
+    isAuthenticated: () => !!getUserToken(),
+    isAdminAuthenticated: () => !!getAdminToken(),
 
-    getToken,
+    getUserToken,
     getAdminToken,
 };

@@ -65,6 +65,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }
     }, [mounted, pathname, router]);
 
+
+
     if (pathname === '/admin/login') {
         return <>{children}</>;
     }
