@@ -27,17 +27,12 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [mounted, setMounted] = useState(false);
-    const [authChecked, setAuthChecked] = useState(false);
 
     const pathname = usePathname();
     const router = useRouter();
     const { admin } = useAuthStore();
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
+    // ================= AUTH CHECK =================
     useEffect(() => {
         const checkAuth = async () => {
             try {
@@ -53,40 +48,23 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                         Authorization: `Bearer ${token}`,
                     },
                 });
-
-                setAuthChecked(true);
             } catch (err) {
+                localStorage.removeItem('admin_token');
                 router.replace('/admin/login');
             }
         };
 
-        if (mounted && pathname !== '/admin/login') {
+        if (pathname !== '/admin/login') {
             checkAuth();
         }
-    }, [mounted, pathname, router]);
+    }, [pathname, router]);
 
-
-
+    // ================= LOGIN PAGE SKIP =================
     if (pathname === '/admin/login') {
         return <>{children}</>;
     }
 
-    if (!mounted) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
-                <div className="text-[#818B9C]">Loading...</div>
-            </div>
-        );
-    }
-
-    if (!authChecked) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]">
-                <div className="text-[#818B9C]">Verifying access...</div>
-            </div>
-        );
-    }
-
+    // ================= MENU =================
     const menuItems = [
         { name: 'Dashboard', href: '/admin/dashboard', icon: FaTachometerAlt },
         { name: 'Orders', href: '/admin/orders', icon: FaShoppingCart },
@@ -143,8 +121,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive(item.href)
-                                                    ? 'bg-[#C85A3A] text-white'
-                                                    : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                                        ? 'bg-[#C85A3A] text-white'
+                                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}
                                             >
                                                 <Icon />
