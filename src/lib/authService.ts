@@ -45,7 +45,6 @@ export const removeAdminToken = () => {
 api.interceptors.request.use((config) => {
     const url = config.url || '';
 
-    // ❌ NEVER attach token for login requests
     const isLoginRequest =
         url.includes('/auth/login') ||
         url.includes('/auth/admin/login');

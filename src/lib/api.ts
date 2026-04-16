@@ -15,30 +15,19 @@ api.interceptors.request.use(
   (config) => {
     const url = config.url || '';
 
-    // ❌ NEVER attach token for login routes
     const isAuthRoute =
       url.includes('/auth/login') ||
       url.includes('/auth/admin/login') ||
       url.includes('/auth/register');
 
-    if (isAuthRoute) {
-      console.log('📤 Auth route (no token attached):', url);
-      return config;
-    }
+    if (isAuthRoute) return config;
 
-    // 🔥 Decide token type
-    const isAdminRoute = url.includes('/admin');
-
-    const token = isAdminRoute
-      ? getAdminToken()
-      : getUserToken();
+    // ✅ Always prefer admin token
+    const token = getAdminToken() || getUserToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    console.log('📤 Request:', url);
-    console.log('🔑 Token:', token || 'NO TOKEN');
 
     return config;
   },
@@ -47,17 +36,9 @@ api.interceptors.request.use(
 
 // ================= RESPONSE INTERCEPTOR =================
 api.interceptors.response.use(
-  (response) => {
-    console.log('✅ Response:', response.config.url);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error('❌ API Error:', error.response?.data || error.message);
-
-    // 🔥 Handle unauthorized globally
     if (error.response?.status === 401) {
-      console.warn('⚠️ 401 Unauthorized');
-
       removeAdminToken();
 
       if (typeof window !== 'undefined') {

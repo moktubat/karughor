@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import {
     FaSearch, FaEye, FaPhone, FaMapMarkerAlt,
     FaTimes, FaSpinner,
 } from 'react-icons/fa';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+// ─── constants ────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
     { value: 'all', label: 'All Orders' },
@@ -37,8 +37,11 @@ const getStatusBadge = (status: string) => {
     return map[status] || map.new;
 };
 
+// ─── component ────────────────────────────────────────────────────────────────
+
 const OrdersManagement = () => {
     const queryClient = useQueryClient();
+
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
@@ -46,7 +49,7 @@ const OrdersManagement = () => {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-    // ── Fetch orders ──────────────────────────────────────────────────────────
+    // ── paginated orders ──────────────────────────────────────────────────────
     const { data, isLoading } = useQuery({
         queryKey: ['admin-orders', selectedStatus, searchQuery, page],
         queryFn: async () => {
@@ -57,25 +60,22 @@ const OrdersManagement = () => {
             if (selectedStatus !== 'all') params.status = selectedStatus;
             if (searchQuery) params.search = searchQuery;
 
-            const res = await axios.get(`${API_URL}/orders/admin/all`, {
-                params,
-                withCredentials: true,
-            });
+            // ✅ uses `api` — interceptor auto-attaches admin Bearer token
+            const res = await api.get('/orders/admin/all', { params });
             return res.data.data;
         },
-
     });
 
     const orders = data?.orders || [];
     const pagination = data?.pagination;
     const totalPages = pagination?.pages || 1;
 
-    // ── Status counts (all statuses, no filter) ───────────────────────────────
-    const { data: allData } = useQuery({
+    // ── all orders (for status-tab counts) ───────────────────────────────────
+    const { data: allOrders } = useQuery({
         queryKey: ['admin-orders-counts'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
-                withCredentials: true,
+            const res = await api.get('/orders/admin/all', {
+                params: { limit: '1000' },
             });
             return res.data.data.orders as any[];
         },
@@ -84,19 +84,15 @@ const OrdersManagement = () => {
 
     const countByStatus = (status: string) =>
         status === 'all'
-            ? (allData?.length ?? 0)
-            : (allData?.filter((o: any) => o.status === status).length ?? 0);
+            ? (allOrders?.length ?? 0)
+            : (allOrders?.filter((o: any) => o.status === status).length ?? 0);
 
-    // ── Update status mutation ─────────────────────────────────────────────────
+    // ── status mutation ───────────────────────────────────────────────────────
     const { mutate: updateStatus } = useMutation({
         mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
             setUpdatingId(orderId);
             setUpdatingStatus(status);
-            return axios.patch(
-                `${API_URL}/orders/${orderId}/status`,
-                { status },
-                { withCredentials: true }
-            );
+            return api.patch(`/orders/${orderId}/status`, { status });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
@@ -104,41 +100,27 @@ const OrdersManagement = () => {
             queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
             setSelectedOrder(null);
         },
-        onError: (err) => {
-            console.error("Status update failed:", err);
-            alert("Failed to update order status");
-        },
-        onSettled: () => {
-            setUpdatingId(null);
-            setUpdatingStatus(null);
-        }
+        onError: () => alert('Failed to update order status'),
+        onSettled: () => { setUpdatingId(null); setUpdatingStatus(null); },
     });
 
-    // ── Search debounce ───────────────────────────────────────────────────────
+    // ── search debounce ───────────────────────────────────────────────────────
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleSearchChange = (val: string) => {
-        if (searchTimerRef.current) {
-            clearTimeout(searchTimerRef.current);
-        }
-
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
         searchTimerRef.current = setTimeout(() => {
             setSearchQuery(val.trim());
-            setPage(() => 1);
+            setPage(1);
         }, 400);
     };
 
-    useEffect(() => {
-        return () => {
-            if (searchTimerRef.current) {
-                clearTimeout(searchTimerRef.current);
-            }
-        };
-    }, []);
+    useEffect(() => () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); }, []);
 
+    // ── render ────────────────────────────────────────────────────────────────
     return (
         <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-[1400px] mx-auto">
+            <div className="max-w-350 mx-auto">
 
                 {/* Header */}
                 <div className="mb-8">
@@ -190,14 +172,19 @@ const OrdersManagement = () => {
                         <table className="w-full">
                             <thead className="bg-[#F7F7F7] border-b border-[#E4E9EE]">
                                 <tr>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Order #</th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Customer</th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Phone</th>
-                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Items</th>
-                                    <th className="text-right py-4 px-4 text-sm font-semibold text-[#818B9C]">Total</th>
-                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Status</th>
-                                    <th className="text-left py-4 px-4 text-sm font-semibold text-[#818B9C]">Date</th>
-                                    <th className="text-center py-4 px-4 text-sm font-semibold text-[#818B9C]">Actions</th>
+                                    {['Order #', 'Customer', 'Phone', 'Items', 'Total', 'Status', 'Date', 'Actions'].map((h) => (
+                                        <th
+                                            key={h}
+                                            className={`py-4 px-4 text-sm font-semibold text-[#818B9C] ${h === 'Items' || h === 'Status' || h === 'Actions'
+                                                ? 'text-center'
+                                                : h === 'Total'
+                                                    ? 'text-right'
+                                                    : 'text-left'
+                                                }`}
+                                        >
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
@@ -250,31 +237,24 @@ const OrdersManagement = () => {
                                                     >
                                                         <FaEye className="w-4 h-4" />
                                                     </button>
-                                                    {/* Quick advance status */}
                                                     {NEXT_STATUS[order.status] && (
                                                         <button
-                                                            onClick={() =>
-                                                                updateStatus({
-                                                                    orderId: order._id,
-                                                                    status: NEXT_STATUS[order.status]
-                                                                })
-                                                            }
+                                                            onClick={() => updateStatus({ orderId: order._id, status: NEXT_STATUS[order.status] })}
                                                             disabled={updatingId === order._id}
                                                             className="px-3 py-1.5 bg-[#C85A3A] text-white text-xs font-semibold rounded-lg hover:bg-[#A84830] transition-all disabled:opacity-50 whitespace-nowrap"
                                                         >
-                                                            {updatingId === order._id ? (
-                                                                <FaSpinner className="animate-spin inline mr-1" />
-                                                            ) : (
-                                                                '→'
-                                                            )}
-                                                            {NEXT_STATUS[order.status].charAt(0).toUpperCase() +
-                                                                NEXT_STATUS[order.status].slice(1)}
+                                                            {updatingId === order._id
+                                                                ? <FaSpinner className="animate-spin inline mr-1" />
+                                                                : <span className="mr-1">→</span>
+                                                            }
+                                                            {NEXT_STATUS[order.status].charAt(0).toUpperCase() + NEXT_STATUS[order.status].slice(1)}
                                                         </button>
                                                     )}
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    ))
+                                }
                             </tbody>
                         </table>
                     </div>
@@ -311,7 +291,7 @@ const OrdersManagement = () => {
                 )}
             </div>
 
-            {/* ── Order Detail Modal ──────────────────────────────────────────── */}
+            {/* ── Order Detail Modal ───────────────────────────────────────── */}
             {selectedOrder && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -336,7 +316,7 @@ const OrdersManagement = () => {
 
                         <div className="p-6 space-y-6">
 
-                            {/* Customer Info */}
+                            {/* Customer */}
                             <div>
                                 <h3 className="text-base font-semibold text-[#0B0F0E] mb-3">Customer</h3>
                                 <div className="space-y-2 bg-[#F7F7F7] p-4 rounded-lg text-sm">
@@ -349,7 +329,7 @@ const OrdersManagement = () => {
                                         <p className="text-[#818B9C]">{selectedOrder.customer.email}</p>
                                     )}
                                     <div className="flex items-start gap-2 text-[#818B9C]">
-                                        <FaMapMarkerAlt className="text-[#C85A3A] mt-0.5 flex-shrink-0" />
+                                        <FaMapMarkerAlt className="text-[#C85A3A] mt-0.5 shrink-0" />
                                         <span>
                                             {selectedOrder.customer?.address?.street},&nbsp;
                                             {selectedOrder.customer?.address?.area},&nbsp;
@@ -396,7 +376,7 @@ const OrdersManagement = () => {
                                 </div>
                             </div>
 
-                            {/* Notes */}
+                            {/* Customer notes */}
                             {selectedOrder.customerNotes && (
                                 <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm">
                                     <p className="font-semibold text-[#0B0F0E] mb-1">Customer Note</p>
@@ -423,9 +403,10 @@ const OrdersManagement = () => {
                                                 : 'border border-[#C85A3A] text-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
                                                 }`}
                                         >
-                                            {updatingStatus === s ? (
-                                                <FaSpinner className="animate-spin inline mr-1" />
-                                            ) : null}
+                                            {updatingStatus === s
+                                                ? <FaSpinner className="animate-spin inline mr-1" />
+                                                : null
+                                            }
                                             {s.charAt(0).toUpperCase() + s.slice(1)}
                                         </button>
                                     ))}
