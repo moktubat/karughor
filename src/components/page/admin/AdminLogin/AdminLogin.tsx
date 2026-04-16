@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { authService, type AdminLoginData } from '@/lib/authService';
+import { useRouter } from 'next/router';
 
 const AdminLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const router = useRouter();
 
     const { register, handleSubmit, formState: { errors } } = useForm<AdminLoginData>({
         defaultValues: { email: '', password: '' },
@@ -20,10 +22,11 @@ const AdminLogin = () => {
         try {
             setLoading(true);
             setError('');
+
             const response = await authService.adminLogin(data);
+
             if (response.success) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-                window.location.href = '/admin/dashboard';
+                router.push('/admin/dashboard'); // ✅ clean navigation
             } else {
                 throw new Error('Login failed');
             }

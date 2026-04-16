@@ -1,20 +1,32 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    const adminToken = request.cookies.get('admin_token')?.value;
 
+    // Only protect admin routes
     if (pathname.startsWith('/admin')) {
-        if (pathname === '/admin/login') {
-            if (adminToken) {
-                return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-            }
-            return NextResponse.next();
+        const authHeader = request.headers.get('authorization');
+
+        console.log('PATH:', pathname);
+        console.log('AUTH HEADER:', authHeader);
+
+        // No token → redirect
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.redirect(new URL('/admin/login', request.url));
         }
 
-        // Actually block unauthorized access
-        if (!adminToken) {
+        const token = authHeader.split(' ')[1];
+
+        if (!token) {
+            return NextResponse.redirect(new URL('/admin/login', request.url));
+        }
+
+        // ✅ OPTIONAL: basic check (no verify here)
+        try {
+            // You can decode manually if needed
+            // but NOT required for simple protection
+            return NextResponse.next();
+        } catch (err) {
             return NextResponse.redirect(new URL('/admin/login', request.url));
         }
     }
