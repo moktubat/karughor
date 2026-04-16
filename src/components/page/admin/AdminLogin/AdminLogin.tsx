@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { FaEye, FaEyeSlash, FaShieldAlt } from 'react-icons/fa';
 import { authService, type AdminLoginData } from '@/lib/authService';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 const AdminLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +26,7 @@ const AdminLogin = () => {
             const response = await authService.adminLogin(data);
 
             if (response.success) {
-                router.push('/admin/dashboard'); // ✅ clean navigation
+                router.push('/admin/dashboard');
             } else {
                 throw new Error('Login failed');
             }
