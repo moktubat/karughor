@@ -41,7 +41,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                await api.get('/auth/admin/me', { withCredentials: true });
+                const token = localStorage.getItem('admin_token');
+
+                if (!token) {
+                    router.replace('/admin/login');
+                    return;
+                }
+
+                await api.get('/auth/admin/me', {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
                 setAuthChecked(true);
             } catch (err) {
                 router.replace('/admin/login');
@@ -129,8 +141,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
                                                 className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive(item.href)
-                                                        ? 'bg-[#C85A3A] text-white'
-                                                        : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                                    ? 'bg-[#C85A3A] text-white'
+                                                    : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}
                                             >
                                                 <Icon />
