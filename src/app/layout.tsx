@@ -5,14 +5,10 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import QueryProvider from "@/providers/QueryProvider";
 import BackendWarmup from "@/components/common/BackendWarmup";
+import { ToastProvider } from "@/providers/ToastProvider";
 
 const clashGrotesk = localFont({
-  src: [
-    {
-      path: "./../../public/font/clash-grotesk/ClashGrotesk-Variable.ttf",
-      style: "normal",
-    },
-  ],
+  src: "../assets/font/clash-grotesk/ClashGrotesk-Variable.ttf",
   variable: "--font-clash",
   display: "swap",
 });
@@ -31,10 +27,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${clashGrotesk.variable} antialiased`}>
         <QueryProvider>
-          <BackendWarmup />   {/* ← Wakes up Render backend immediately */}
-          <Navbar />
-          {children}
-          <Footer />
+          <ToastProvider>
+            <BackendWarmup />
+            <Navbar />
+            {children}
+            <Footer />
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

@@ -8,15 +8,20 @@ import { MdKeyboardArrowRight, MdChevronLeft, MdChevronRight } from 'react-icons
 import { useQuery } from '@tanstack/react-query';
 import { categoryService } from '@/lib/categoryService';
 import { STATIC_CATEGORIES } from '@/lib/staticCategories';
-import axios from 'axios';
 import Link from 'next/link';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 const ITEMS_PER_PAGE = 12;
 
 const fetchProducts = async (params: Record<string, string>) => {
-    const res = await axios.get(`${API_URL}/products?${new URLSearchParams(params).toString()}`);
+    const res = await api.get('/products', { params });
     return res.data.data;
+};
+
+// Fetch all products (no pagination) to get counts per category
+const fetchAllProductsForCounts = async () => {
+    const res = await api.get('/products', { params: { limit: '1000' } });
+    return res.data.data.products as any[];
 };
 
 const Products = () => {
@@ -55,12 +60,37 @@ const Products = () => {
         staleTime: 5 * 60 * 1000,
     });
 
-    // Show static categories immediately; swap to real data when API responds
+    // Fetch all products once for counting per category
+    const { data: allProductsForCounts } = useQuery({
+        queryKey: ['all-products-for-counts'],
+        queryFn: fetchAllProductsForCounts,
+        staleTime: 2 * 60 * 1000,
+    });
+
     const categories = (apiCategories && apiCategories.length > 0) ? apiCategories : STATIC_CATEGORIES;
 
     const products = productsData?.products || [];
     const pagination = productsData?.pagination;
     const totalPages = pagination?.pages || 1;
+    const totalAll = allProductsForCounts?.length ?? 0;
+
+    // Build a count map: category name (lowercase) → count
+    const categoryCountMap: Record<string, number> = {};
+    if (allProductsForCounts) {
+        for (const p of allProductsForCounts) {
+            const key = (p.category || '').toLowerCase();
+            categoryCountMap[key] = (categoryCountMap[key] || 0) + 1;
+        }
+    }
+
+    // Get count for a given category slug
+    const getCategoryCount = (slug: string): number => {
+        const cat = categories.find((c: any) => c.slug === slug);
+        if (!cat) return 0;
+        const nameKey = cat.name.toLowerCase();
+        const slugKey = slug.toLowerCase();
+        return categoryCountMap[nameKey] ?? categoryCountMap[slugKey] ?? 0;
+    };
 
     const goToPage = (page: number) => {
         if (page < 1 || page > totalPages) return;
@@ -109,27 +139,33 @@ const Products = () => {
                     <div className="flex justify-between gap-8 flex-wrap items-start">
                         <div className="flex-1 mt-3">
                             <div className="flex flex-wrap gap-y-3 gap-x-6">
+                                {/* All Products button */}
                                 <button
                                     onClick={() => handleCategoryClick('')}
                                     className={`text-sm font-medium transition-colors ${!activeCategory ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
                                 >
                                     All Products
-                                    {!activeCategory && pagination && (
-                                        <span className="text-[#818B9C] font-normal ml-1">({pagination.total})</span>
+                                    {totalAll > 0 && (
+                                        <span className="text-[#818B9C] font-normal ml-1">({totalAll})</span>
                                     )}
                                 </button>
-                                {categories.map((cat: any) => (
-                                    <button
-                                        key={cat._id}
-                                        onClick={() => handleCategoryClick(cat.slug)}
-                                        className={`text-sm font-medium transition-colors text-left ${activeCategory === cat.slug ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
-                                    >
-                                        {cat.name}
-                                        {activeCategory === cat.slug && pagination && (
-                                            <span className="text-[#818B9C] font-normal ml-1">({pagination.total})</span>
-                                        )}
-                                    </button>
-                                ))}
+
+                                {/* Per-category buttons with counts */}
+                                {categories.map((cat: any) => {
+                                    const count = getCategoryCount(cat.slug);
+                                    return (
+                                        <button
+                                            key={cat._id}
+                                            onClick={() => handleCategoryClick(cat.slug)}
+                                            className={`text-sm font-medium transition-colors text-left ${activeCategory === cat.slug ? 'text-[#C85A3A] underline underline-offset-4' : 'text-[#0B0F0E] hover:text-[#C85A3A]'}`}
+                                        >
+                                            {cat.name}
+                                            {count > 0 && (
+                                                <span className="text-[#818B9C] font-normal ml-1">({count})</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaUser, FaEnvelope, FaLock, FaStore, FaPhone, FaCamera, FaSpinner } from 'react-icons/fa';
 import { adminAuthHeaders } from '@/lib/adminAuth';
 import api from '@/lib/api';
+import { useToast } from '@/providers/ToastProvider';
 
 interface ProfileFormValues {
     fullName: string;
@@ -29,8 +30,7 @@ interface PasswordFormValues {
 const AdminProfile = () => {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'profile' | 'store' | 'password'>('profile');
-    const [successMsg, setSuccessMsg] = useState('');
-    const [errorMsg, setErrorMsg] = useState('');
+    const { showSuccess, showError } = useToast();
 
     // ── Fetch admin profile ────────────────────────────────────────────────────
     const { data: adminData, isLoading } = useQuery({
@@ -85,7 +85,7 @@ const AdminProfile = () => {
         register: registerStore,
         handleSubmit: handleSubmitStore,
         reset: resetStore,
-        formState: { errors: storeErrors },
+        formState: { errors: {} },
     } = useForm<StoreFormValues>();
 
     useEffect(() => {
@@ -152,17 +152,6 @@ const AdminProfile = () => {
         },
     });
 
-    const showSuccess = (msg: string) => {
-        setSuccessMsg(msg);
-        setErrorMsg('');
-        setTimeout(() => setSuccessMsg(''), 3000);
-    };
-
-    const showError = (msg: string) => {
-        setErrorMsg(msg);
-        setSuccessMsg('');
-        setTimeout(() => setErrorMsg(''), 4000);
-    };
 
     if (isLoading) {
         return (
@@ -179,18 +168,6 @@ const AdminProfile = () => {
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Admin Profile</h1>
                     <p className="text-[#818B9C]">Manage your account and store settings</p>
                 </div>
-
-                {/* Toast messages */}
-                {successMsg && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
-                        ✅ {successMsg}
-                    </div>
-                )}
-                {errorMsg && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 font-medium">
-                        ❌ {errorMsg}
-                    </div>
-                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Sidebar */}

@@ -7,6 +7,7 @@ import {
     FaTimes, FaSpinner,
 } from 'react-icons/fa';
 import api from '@/lib/api';
+import { useToast } from '@/providers/ToastProvider';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ const OrdersManagement = () => {
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+    const { showSuccess, showError } = useToast();
 
     // ── paginated orders ──────────────────────────────────────────────────────
     const { data, isLoading } = useQuery({
@@ -60,7 +62,6 @@ const OrdersManagement = () => {
             if (selectedStatus !== 'all') params.status = selectedStatus;
             if (searchQuery) params.search = searchQuery;
 
-            // ✅ uses `api` — interceptor auto-attaches admin Bearer token
             const res = await api.get('/orders/admin/all', { params });
             return res.data.data;
         },
@@ -94,14 +95,28 @@ const OrdersManagement = () => {
             setUpdatingStatus(status);
             return api.patch(`/orders/${orderId}/status`, { status });
         },
-        onSuccess: () => {
+
+        onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
             queryClient.invalidateQueries({ queryKey: ['admin-orders-counts'] });
             queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+
             setSelectedOrder(null);
+
+            const formatStatus = (s: string) =>
+                s.charAt(0).toUpperCase() + s.slice(1);
+
+            showSuccess(`Order moved to ${formatStatus(variables.status)}`);
         },
-        onError: () => alert('Failed to update order status'),
-        onSettled: () => { setUpdatingId(null); setUpdatingStatus(null); },
+
+        onError: () => {
+            showError('Failed to update order status');
+        },
+
+        onSettled: () => {
+            setUpdatingId(null);
+            setUpdatingStatus(null);
+        },
     });
 
     // ── search debounce ───────────────────────────────────────────────────────

@@ -2,19 +2,28 @@
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { FaCheckCircle, FaHome, FaShoppingBag } from 'react-icons/fa';
-import { useToast } from '@/hooks/useToast';
-import { FaCopy } from 'react-icons/fa';
-import { Toast } from '@/components/common/Toast';
+import { FaCheckCircle, FaHome, FaShoppingBag, FaCopy } from 'react-icons/fa';
+import { useToast } from '@/providers/ToastProvider';
 
 const OrderSuccessPage = () => {
     const searchParams = useSearchParams();
     const orderNumber = searchParams.get('orderNumber') || '';
-    const { toast, showSuccess } = useToast();
+
+    const { showSuccess, showError } = useToast();
+
+    const handleCopy = async () => {
+        if (!orderNumber) return;
+
+        try {
+            await navigator.clipboard.writeText(orderNumber);
+            showSuccess('Order number copied!');
+        } catch {
+            showError('Failed to copy order number');
+        }
+    };
 
     return (
         <div className="bg-white w-full min-h-screen flex items-center justify-center px-4 py-16">
-            {toast && <Toast message={toast.message} type={toast.type} />}
             <div className="max-w-md w-full text-center">
 
                 {/* Tick icon */}
@@ -43,14 +52,7 @@ const OrderSuccessPage = () => {
 
                         <button
                             title="Copy order number"
-                            onClick={async () => {
-                                try {
-                                    await navigator.clipboard.writeText(orderNumber);
-                                    showSuccess('Order number copied!');
-                                } catch {
-                                    showSuccess('Copy failed');
-                                }
-                            }}
+                            onClick={handleCopy}
                             className="flex items-center gap-1 text-xs px-2 py-1 border border-[#E4E9EE] rounded hover:border-[#C85A3A] hover:text-[#C85A3A] transition-all"
                         >
                             <FaCopy />
@@ -61,7 +63,9 @@ const OrderSuccessPage = () => {
 
                 {/* Info box */}
                 <div className="bg-[#FFF5F2] border border-[#C85A3A]/20 rounded-lg p-5 mb-8 text-left">
-                    <p className="text-sm font-semibold text-[#0B0F0E] mb-2">What happens next?</p>
+                    <p className="text-sm font-semibold text-[#0B0F0E] mb-2">
+                        What happens next?
+                    </p>
                     <ul className="space-y-1.5 text-sm text-[#818B9C]">
                         <li>✅ We&apos;ll confirm your order via phone call</li>
                         <li>📦 Your order will be packed and dispatched</li>
@@ -77,6 +81,7 @@ const OrderSuccessPage = () => {
                             <FaHome /> Go Home
                         </button>
                     </Link>
+
                     <Link href="/products">
                         <button className="flex items-center justify-center gap-2 px-6 py-3 bg-[#C85A3A] text-white rounded-lg font-semibold hover:bg-[#A84830] transition-all w-full sm:w-auto">
                             <FaShoppingBag /> Shop More

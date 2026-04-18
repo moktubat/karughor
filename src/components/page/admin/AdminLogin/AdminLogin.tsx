@@ -17,14 +17,11 @@ const AdminLogin = () => {
         defaultValues: { email: '', password: '' },
     });
 
-
     const onSubmit = async (data: AdminLoginData) => {
         try {
             setLoading(true);
             setError('');
-
             const response = await authService.adminLogin(data);
-
             if (response.success) {
                 router.push('/admin/dashboard');
             } else {

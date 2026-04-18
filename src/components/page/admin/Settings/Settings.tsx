@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { FaSave, FaSpinner } from 'react-icons/fa';
-import { adminAuthHeaders } from '@/lib/adminAuth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
-
+import api from '@/lib/api';
+import { useToast } from '@/providers/ToastProvider';
 
 
 interface ISettings {
@@ -30,16 +27,21 @@ const DEFAULT: ISettings = {
     autoCancelHours: 48,
 };
 
+type ToggleProps = {
+    value: boolean;
+    onChange: () => void;
+};
+
 const Settings = () => {
     const queryClient = useQueryClient();
     const [local, setLocal] = useState<ISettings>(DEFAULT);
     const [hasChanges, setHasChanges] = useState(false);
-    const [successMsg, setSuccessMsg] = useState('');
+    const { showSuccess, showError } = useToast();
 
     const { data, isLoading } = useQuery({
         queryKey: ['admin-settings'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/settings`);
+            const res = await api.get('/settings');
             return res.data.data.settings as ISettings;
         },
     });
@@ -53,17 +55,18 @@ const Settings = () => {
 
     const saveMutation = useMutation({
         mutationFn: async (settings: ISettings) => {
-            const res = await axios.put(`${API_URL}/settings`, settings, {
-                headers: adminAuthHeaders(),
-                withCredentials: true,
-            });
+            const res = await api.put('/settings', settings);
             return res.data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
             setHasChanges(false);
-            setSuccessMsg('Settings saved!');
-            setTimeout(() => setSuccessMsg(''), 3000);
+            showSuccess('Settings saved successfully!');
+        },
+        onError: (error: any) => {
+            showError(
+                error?.response?.data?.message || 'Failed to save settings!'
+            );
         },
     });
 
@@ -76,12 +79,16 @@ const Settings = () => {
         if (data) { setLocal(data); setHasChanges(false); }
     };
 
-    const Toggle = ({ field }: { field: 'codEnabled' | 'autoCancel' }) => (
+    const Toggle = ({ value, onChange }: ToggleProps) => (
         <button
-            onClick={() => handleChange(field, !local[field])}
-            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${local[field] ? 'bg-[#C85A3A]' : 'bg-gray-300'}`}
+            onClick={onChange}
+            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${value ? 'bg-[#C85A3A]' : 'bg-gray-300'
+                }`}
         >
-            <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${local[field] ? 'translate-x-9' : 'translate-x-1'}`} />
+            <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${value ? 'translate-x-9' : 'translate-x-1'
+                    }`}
+            />
         </button>
     );
 
@@ -101,12 +108,6 @@ const Settings = () => {
                     <p className="text-[#818B9C]">Configure your store settings</p>
                 </div>
 
-                {successMsg && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
-                        ✅ {successMsg}
-                    </div>
-                )}
-
                 <div className="space-y-6">
                     {/* COD */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
@@ -117,14 +118,19 @@ const Settings = () => {
                                     <h3 className="font-semibold text-[#0B0F0E] mb-1">Enable COD</h3>
                                     <p className="text-sm text-[#818B9C]">Allow customers to pay on delivery</p>
                                 </div>
-                                <Toggle field="codEnabled" />
+                                <Toggle
+                                    value={local.codEnabled}
+                                    onChange={() => handleChange('codEnabled', !local.codEnabled)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-base font-medium text-[#0B0F0E]">Maximum COD Order Amount (৳)</label>
                                 <input
                                     type="number"
                                     value={local.maxCodAmount}
-                                    onChange={e => handleChange('maxCodAmount', parseInt(e.target.value))}
+                                    onChange={e =>
+                                        handleChange('maxCodAmount', Number(e.target.value) || 0)
+                                    }
                                     disabled={!local.codEnabled}
                                     className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
                                 />
@@ -141,7 +147,9 @@ const Settings = () => {
                                 <input
                                     type="number"
                                     value={local.insideDhakaCharge}
-                                    onChange={e => handleChange('insideDhakaCharge', parseInt(e.target.value))}
+                                    onChange={e =>
+                                        handleChange('insideDhakaCharge', Number(e.target.value) || 0)
+                                    }
                                     className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                 />
                             </div>
@@ -150,7 +158,9 @@ const Settings = () => {
                                 <input
                                     type="number"
                                     value={local.outsideDhakaCharge}
-                                    onChange={e => handleChange('outsideDhakaCharge', parseInt(e.target.value))}
+                                    onChange={e =>
+                                        handleChange('outsideDhakaCharge', Number(e.target.value) || 0)
+                                    }
                                     className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                                 />
                             </div>
@@ -166,7 +176,9 @@ const Settings = () => {
                                 type="number"
                                 step="0.1"
                                 value={local.taxPercentage}
-                                onChange={e => handleChange('taxPercentage', parseFloat(e.target.value))}
+                                onChange={e =>
+                                    handleChange('taxPercentage', Number(e.target.value) || 0)
+                                }
                                 className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
                             />
                             <p className="text-sm text-[#818B9C]">Set to 0 to disable tax</p>
@@ -182,14 +194,19 @@ const Settings = () => {
                                     <h3 className="font-semibold text-[#0B0F0E] mb-1">Enable Auto-Cancel</h3>
                                     <p className="text-sm text-[#818B9C]">Automatically cancel unconfirmed orders</p>
                                 </div>
-                                <Toggle field="autoCancel" />
+                                <Toggle
+                                    value={local.autoCancel}
+                                    onChange={() => handleChange('autoCancel', !local.autoCancel)}
+                                />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <label className="text-base font-medium text-[#0B0F0E]">Auto-Cancel After (Hours)</label>
                                 <input
                                     type="number"
                                     value={local.autoCancelHours}
-                                    onChange={e => handleChange('autoCancelHours', parseInt(e.target.value))}
+                                    onChange={e =>
+                                        handleChange('autoCancelHours', Number(e.target.value) || 0)
+                                    }
                                     disabled={!local.autoCancel}
                                     className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20 disabled:bg-[#F7F7F7] disabled:cursor-not-allowed"
                                 />

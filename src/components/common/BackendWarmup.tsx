@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useToast } from '@/hooks/useToast';
-import { Toast } from '@/components/common/Toast';
+import { useToast } from '@/providers/ToastProvider';
 
 export default function BackendWarmup() {
-    const { toast, showError } = useToast();
+    const { showError } = useToast();
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -39,9 +38,5 @@ export default function BackendWarmup() {
         };
     }, [showError]);
 
-    return (
-        <>
-            {toast && <Toast message={toast.message} type={toast.type} />}
-        </>
-    );
+    return null;
 }

@@ -2,13 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import {
     FaBell, FaShoppingCart, FaExclamationTriangle, FaTimes, FaCheck, FaSpinner,
 } from 'react-icons/fa';
-import { adminAuthHeaders } from '@/lib/adminAuth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
+import api from '@/lib/api';
 
 
 
@@ -43,10 +40,7 @@ const Notifications = () => {
     const { data: ordersData, isLoading: ordersLoading } = useQuery({
         queryKey: ['admin-notifications-orders'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/orders/admin/all?limit=50&sort=-createdAt`, {
-                headers: adminAuthHeaders(),
-                withCredentials: true,
-            });
+            const res = await api.get('/orders/admin/all?limit=50&sort=-createdAt');
             return res.data.data.orders as any[];
         },
         refetchInterval: 60_000,
@@ -56,10 +50,7 @@ const Notifications = () => {
     const { data: lowStockData, isLoading: stockLoading } = useQuery({
         queryKey: ['admin-notifications-stock'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products?limit=200`, {
-                headers: adminAuthHeaders(),
-                withCredentials: true,
-            });
+            const res = await api.get('/products?limit=200');
             const products = res.data.data.products as any[];
             return products.filter((p: any) => p.stock <= 10);
         },

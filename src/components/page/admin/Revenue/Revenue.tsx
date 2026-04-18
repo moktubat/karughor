@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
     FaDollarSign,
     FaCheckCircle,
@@ -11,13 +11,22 @@ import {
     FaCalendarAlt,
     FaTruck,
 } from 'react-icons/fa';
-import { adminAuthHeaders } from '@/lib/adminAuth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 type Period = 'today' | 'week' | 'month' | 'year';
 
+type DailySale = {
+    _id: string;
+    orders: number;
+    revenue: number;
+};
 
+type TopProduct = {
+    _id: string;
+    name: string;
+    sold: number;
+    revenue: number;
+};
 
 const Revenue = () => {
     const [selectedPeriod, setSelectedPeriod] = useState<Period>('month');
@@ -25,10 +34,7 @@ const Revenue = () => {
     const { data, isLoading } = useQuery({
         queryKey: ['admin-revenue', selectedPeriod],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/admin/revenue/stats?period=${selectedPeriod}`, {
-                headers: adminAuthHeaders(),
-                withCredentials: true,
-            });
+            const res = await api.get(`/admin/revenue/stats?period=${selectedPeriod}`);
             return res.data.data;
         },
     });
@@ -37,24 +43,24 @@ const Revenue = () => {
     const { data: ordersData } = useQuery({
         queryKey: ['admin-orders-summary'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/orders/admin/all?limit=1000`, {
-                headers: adminAuthHeaders(),
-                withCredentials: true,
-            });
+            const res = await api.get(`/orders/admin/all?limit=1000`);
             const orders = res.data.data.orders as any[];
+
             return {
                 delivered: orders.filter(o => o.status === 'delivered').length,
                 cancelled: orders.filter(o => o.status === 'cancelled').length,
                 returned: orders.filter(o => o.status === 'returned').length,
-                pending: orders.filter(o => ['new', 'confirmed', 'shipped'].includes(o.status)).length,
+                pending: orders.filter(o =>
+                    ['new', 'confirmed', 'shipped'].includes(o.status)
+                ).length,
             };
         },
         staleTime: 60_000,
     });
 
     const revenue = data?.revenue;
-    const dailySales: any[] = data?.dailySales || [];
-    const topProducts: any[] = data?.topProducts || [];
+    const dailySales: DailySale[] = data?.dailySales || [];
+    const topProducts: TopProduct[] = data?.topProducts || [];
 
     const totalRevenue = revenue?.total || 0;
     const pendingCod = ordersData
@@ -152,11 +158,27 @@ const Revenue = () => {
                                 <FaTruck className="w-6 h-6" />
                             </div>
                         </div>
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Pending Orders</h3>
-                        {isLoading || !ordersData
-                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
-                            : <p className="text-3xl font-bold text-[#0B0F0E]">{ordersData.pending}</p>
-                        }
+
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">
+                            Pending Orders
+                        </h3>
+
+                        {isLoading || !ordersData ? (
+                            <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                        ) : (
+                            <p className="text-3xl font-bold text-[#0B0F0E]">
+                                {ordersData.pending}
+                            </p>
+                        )}
+
+                        {isLoading || !ordersData ? (
+                            <div className="h-4 bg-gray-100 rounded animate-pulse w-1/3 mt-2" />
+                        ) : (
+                            <p className="text-sm text-[#818B9C] mt-1">
+                                Est. COD: ৳{pendingCod.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            </p>
+                        )}
+
                         <p className="text-xs text-[#818B9C] mt-2">In transit</p>
                     </div>
                 </div>

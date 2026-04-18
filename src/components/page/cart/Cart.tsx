@@ -7,10 +7,9 @@ import { MdKeyboardArrowRight } from 'react-icons/md';
 import { useCartStore } from '@/store/cartStore';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import Image from 'next/image';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 const Cart = () => {
     const router = useRouter();
@@ -20,7 +19,7 @@ const Cart = () => {
     const { data: settingsData } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/settings`);
+            const res = await api.get('/settings');
             return res.data.data.settings;
         },
         staleTime: 5 * 60_000,

@@ -15,9 +15,8 @@ import { userService, type UpdateProfileData } from '@/lib/userService';
 import { authService } from '@/lib/authService';
 import Image from 'next/image';
 import axios from 'axios';
-import { useToast } from '@/hooks/useToast';
-import { Toast } from '@/components/common/Toast';
 import { ProductCard } from '@/components/common/ProductCard';
+import { useToast } from '@/providers/ToastProvider';
 
 interface ProfileFormValues {
     fullName: string;
@@ -59,7 +58,7 @@ const UserProfile = () => {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user, setUser, logout: logoutStore } = useAuthStore();
-    const { toast, showSuccess, showError } = useToast();
+    const { showSuccess, showError } = useToast();
     const tabParam = searchParams.get('tab') as Tab | null;
     const [activeTab, setActiveTab] = useState<Tab>(tabParam || 'profile');
     const [isEditing, setIsEditing] = useState(false);
@@ -413,7 +412,6 @@ const UserProfile = () => {
                     </div>
                 </div>
             </div>
-            {toast && <Toast message={toast.message} type={toast.type} />}
         </div>
     );
 };

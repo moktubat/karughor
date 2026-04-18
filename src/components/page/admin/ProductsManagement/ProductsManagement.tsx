@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/lib/api';
 import { categoryService } from '@/lib/categoryService';
 import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import {
@@ -11,11 +11,8 @@ import {
     FaCloudUploadAlt, FaSpinner,
 } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
-import { adminAuthHeaders } from '@/lib/adminAuth';
-import { useToast } from '@/hooks/useToast';
-import { Toast } from '@/components/common/Toast';
+import { useToast } from '@/providers/ToastProvider';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 interface Product {
     _id: string;
@@ -53,13 +50,13 @@ const ProductsManagement = () => {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [dragOver, setDragOver] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { toast, showSuccess, showError } = useToast();
+    const { showSuccess, showError } = useToast();
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ['admin-products'],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products?limit=200`, { headers: adminAuthHeaders(), withCredentials: true });
+            const res = await api.get('/products?limit=200');
             return res.data.data.products as Product[];
         },
     });
@@ -76,7 +73,7 @@ const ProductsManagement = () => {
 
     const createMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            const res = await axios.post(`${API_URL}/products`, formData, { headers: { ...adminAuthHeaders() }, withCredentials: true });
+            const res = await api.post('/products', formData);
             return res.data;
         },
         onSuccess: () => {
@@ -96,7 +93,7 @@ const ProductsManagement = () => {
 
     const updateMutation = useMutation({
         mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
-            const res = await axios.put(`${API_URL}/products/${id}`, formData, { headers: { ...adminAuthHeaders() }, withCredentials: true });
+            const res = await api.put(`/products/${id}`, formData);
             return res.data;
         },
         onSuccess: () => {
@@ -114,7 +111,7 @@ const ProductsManagement = () => {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: async (id: string) => { await axios.delete(`${API_URL}/products/${id}`, { headers: adminAuthHeaders(), withCredentials: true }); },
+        mutationFn: async (id: string) => { await api.delete(`/products/${id}`); },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-products'] });
             showSuccess('Product deleted successfully!');
@@ -125,7 +122,7 @@ const ProductsManagement = () => {
     });
 
     const toggleMutation = useMutation({
-        mutationFn: async (id: string) => { await axios.patch(`${API_URL}/products/${id}/toggle`, {}, { headers: adminAuthHeaders(), withCredentials: true }); },
+        mutationFn: async (id: string) => { await api.patch(`/products/${id}/toggle`); },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-products'] });
             showSuccess('Product status updated!');
@@ -426,7 +423,7 @@ const ProductsManagement = () => {
                     </div>
                 )}
             </div>
-            {toast && <Toast message={toast.message} type={toast.type} />}
+
             {deleteId && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">

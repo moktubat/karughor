@@ -6,9 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { FaPhone, FaCheckCircle, FaSpinner, FaLock } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';
-import axios from 'axios';
+import api from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 type Step = 'phone' | 'otp' | 'done';
 
@@ -41,7 +40,7 @@ const ForgotPassword = () => {
         setLoading(true);
         setError('');
         try {
-            await axios.post(`${API_URL}/auth/forgot-password`, { phone: data.phone });
+            await api.post('/auth/forgot-password', { phone: data.phone });
             setPhone(data.phone);
             setStep('otp');
         } catch (err: any) {
@@ -55,7 +54,7 @@ const ForgotPassword = () => {
         setLoading(true);
         setError('');
         try {
-            await axios.post(`${API_URL}/auth/reset-password`, {
+            await api.post('/auth/reset-password', {
                 phone,
                 otp: data.otp,
                 newPassword: data.newPassword,

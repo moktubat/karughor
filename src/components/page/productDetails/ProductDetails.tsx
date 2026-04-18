@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
     FaShoppingCart, FaStar,
     FaChevronLeft, FaChevronRight, FaCheck,
@@ -16,7 +16,6 @@ import { useCartStore } from '@/store/cartStore';
 import categoryDefaults from '@/lib/categoryDefaults';
 import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://karughor-backend.onrender.com/api';
 
 // ── Moved OUTSIDE ProductDetails to prevent remount on every render ──────────
 type ProductDetailsTabsProps = {
@@ -52,8 +51,8 @@ const ProductDetailsTabs: React.FC<ProductDetailsTabsProps> = ({
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`px-5 py-3 text-sm font-semibold rounded-t-lg transition-all -mb-px border border-b-0 ${activeTab === tab.id
-                                ? 'bg-white border-[#E4E9EE] text-[#C85A3A]'
-                                : 'bg-transparent border-transparent text-[#818B9C] hover:text-[#0B0F0E]'
+                            ? 'bg-white border-[#E4E9EE] text-[#C85A3A]'
+                            : 'bg-transparent border-transparent text-[#818B9C] hover:text-[#0B0F0E]'
                             }`}
                     >
                         {tab.label}
@@ -65,8 +64,8 @@ const ProductDetailsTabs: React.FC<ProductDetailsTabsProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
                         {Object.entries(specifications).map(([key, val], i) => (
                             <div key={key} className={`flex items-start gap-4 py-4 ${i < Object.keys(specifications).length - (Object.keys(specifications).length % 2 === 0 ? 2 : 1)
-                                    ? 'border-b border-[#F0F0F0]'
-                                    : ''
+                                ? 'border-b border-[#F0F0F0]'
+                                : ''
                                 }`}>
                                 <span className="text-sm text-[#818B9C] w-36 shrink-0 pt-0.5">{key.replace(/_/g, ' ')}</span>
                                 <span className="text-sm font-semibold text-[#0B0F0E]">{val}</span>
@@ -90,7 +89,7 @@ const ProductDetailsTabs: React.FC<ProductDetailsTabsProps> = ({
                     <div className="flex flex-col gap-3">
                         {careInstructions.map((item, i) => (
                             <div key={i} className="flex items-start gap-4 py-3 border-b border-[#F0F0F0] last:border-0">
-                                <div className="w-7 h-7 rounded-full bg-[#C85A3A]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-7 h-7 rounded-full bg-[#C85A3A]/10 flex items-center justify-center shrink-0 mt-0.5">
                                     <span className="text-xs font-bold text-[#C85A3A]">{i + 1}</span>
                                 </div>
                                 <span className="text-sm text-[#0B0F0E] leading-relaxed">{item}</span>
@@ -127,7 +126,7 @@ const ProductDetails: React.FC = () => {
     const { data: productData, isLoading, error } = useQuery({
         queryKey: ['product', id],
         queryFn: async () => {
-            const res = await axios.get(`${API_URL}/products/${id}`);
+            const res = await api.get(`/products/${id}`);
             return res.data.data.product;
         },
         enabled: !!id,
@@ -136,8 +135,8 @@ const ProductDetails: React.FC = () => {
     const { data: relatedData } = useQuery({
         queryKey: ['related-products', productData?.category],
         queryFn: async () => {
-            const res = await axios.get(
-                `${API_URL}/products?category=${productData.category}&limit=4`
+            const res = await api.get(
+                `/products?category=${productData.category}&limit=4`
             );
             return res.data.data.products.filter((p: any) => p._id !== id);
         },
@@ -338,8 +337,8 @@ const ProductDetails: React.FC = () => {
                                         key={index}
                                         onClick={() => setCurrentImageIndex(index)}
                                         className={`relative flex-1 min-w-0 aspect-square bg-[#F6F6F6] rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${index === currentImageIndex
-                                                ? 'border-[#C85A3A]'
-                                                : 'border-transparent hover:border-[#C85A3A]'
+                                            ? 'border-[#C85A3A]'
+                                            : 'border-transparent hover:border-[#C85A3A]'
                                             }`}
                                     >
                                         <Image
@@ -398,8 +397,8 @@ const ProductDetails: React.FC = () => {
                                 onClick={handleAddToCart}
                                 disabled={product.stock === 0}
                                 className={`px-8 py-4 rounded-lg text-lg font-semibold flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${addedToCart
-                                        ? 'bg-green-500 text-white border border-green-500'
-                                        : 'bg-white text-[#C85A3A] border border-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
+                                    ? 'bg-green-500 text-white border border-green-500'
+                                    : 'bg-white text-[#C85A3A] border border-[#C85A3A] hover:bg-[#C85A3A] hover:text-white'
                                     }`}
                             >
                                 {addedToCart ? <><FaCheck /> Added!</> : <><FaShoppingCart /> Add to Cart</>}

@@ -22,78 +22,42 @@ export interface AdminLoginData {
 const USER_TOKEN_KEY = 'user_token';
 const ADMIN_TOKEN_KEY = 'admin_token';
 
-// ================= TOKEN HELPERS =================
-export const getUserToken = () =>
+export const getUserToken = (): string | null =>
     typeof window !== 'undefined' ? localStorage.getItem(USER_TOKEN_KEY) : null;
 
-export const getAdminToken = () =>
+export const getAdminToken = (): string | null =>
     typeof window !== 'undefined' ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
 
 export const setAdminToken = (token: string) => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(ADMIN_TOKEN_KEY, token);
-    }
+    if (typeof window !== 'undefined') localStorage.setItem(ADMIN_TOKEN_KEY, token);
 };
 
 export const removeAdminToken = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem(ADMIN_TOKEN_KEY);
-    }
+    if (typeof window !== 'undefined') localStorage.removeItem(ADMIN_TOKEN_KEY);
 };
 
-// ================= INTERCEPTOR (FIXED) =================
-api.interceptors.request.use((config) => {
-    const url = config.url || '';
+export const adminAuthHeaders = (): Record<string, string> => {
+    const token = getAdminToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
-    const isLoginRequest =
-        url.includes('/auth/login') ||
-        url.includes('/auth/admin/login');
-
-    if (isLoginRequest) return config;
-
-    const isAdminRequest = url.includes('/admin');
-
-    const token = isAdminRequest
-        ? getAdminToken()
-        : getUserToken();
-
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-});
-
-// ================= SERVICE =================
 export const authService = {
-    // ---------- USER ----------
     register: async (data: RegisterData) => {
-        const response = await api.post('/auth/register', data, {
-            withCredentials: true,
-        });
-
+        const response = await api.post('/auth/register', data, { withCredentials: true });
         if (response.data.success) {
-            const user = response.data.data?.user;
-            useAuthStore.getState().setUser(user);
+            useAuthStore.getState().setUser(response.data.data?.user);
         }
-
         return response.data;
     },
 
     login: async (data: LoginData) => {
-        const response = await api.post('/auth/login', data, {
-            withCredentials: true,
-        });
-
+        const response = await api.post('/auth/login', data, { withCredentials: true });
         const res = response.data;
-
         const token = res?.data?.token || res?.token;
-
         if (res.success && token) {
             localStorage.setItem(USER_TOKEN_KEY, token);
             useAuthStore.getState().setUser(res.data?.user || res.user);
         }
-
         return res;
     },
 
@@ -107,29 +71,20 @@ export const authService = {
         return { success: true };
     },
 
-    // ---------- ADMIN ----------
     adminLogin: async (data: AdminLoginData) => {
-        const response = await api.post('/auth/admin/login', data, {
-            withCredentials: true,
-        });
-
+        const response = await api.post('/auth/admin/login', data, { withCredentials: true });
         const res = response.data;
-
-        // SAFE TOKEN EXTRACTION (FIXED BUG)
         const token = res?.data?.token;
-
         if (res.success && token) {
-            localStorage.setItem('admin_token', token);
-
+            localStorage.setItem(ADMIN_TOKEN_KEY, token);
             useAuthStore.getState().setAdmin(res.data.admin);
         }
-
         return res;
     },
 
     adminLogout: async () => {
         try {
-            await api.post('/auth/admin/logout').catch(() => { });
+            await api.post('/auth/admin/logout').catch(() => {});
         } finally {
             removeAdminToken();
             useAuthStore.getState().adminLogout();
@@ -137,7 +92,6 @@ export const authService = {
         return { success: true };
     },
 
-    // ---------- HELPERS ----------
     isAuthenticated: () => !!getUserToken(),
     isAdminAuthenticated: () => !!getAdminToken(),
 
