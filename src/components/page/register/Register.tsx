@@ -4,22 +4,60 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { authService, type RegisterData } from '@/lib/authService';
+import { authService } from '@/lib/authService';
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+const registerSchema = z
+    .object({
+        fullName: z.string().min(3, 'Name must be at least 3 characters'),
+        phone: z
+            .string()
+            .min(10, 'Phone must be at least 10 digits')
+            .regex(/^[0-9+\-\s()]+$/, 'Invalid phone number format'),
+        email: z
+            .string()
+            .email('Invalid email address')
+            .optional()
+            .or(z.literal('')),
+        password: z
+            .string()
+            .min(8, 'Password must be at least 8 characters')
+            .regex(
+                /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                'Must contain uppercase, lowercase, and a number'
+            ),
+        confirmPassword: z.string().min(1, 'Please confirm your password'),
+    })
+    .refine((d) => d.password === d.confirmPassword, {
+        message: "Passwords don't match",
+        path: ['confirmPassword'],
+    });
+
+type RegisterForm = z.infer<typeof registerSchema>;
+
+// ─── Input class ──────────────────────────────────────────────────────────────
+
+const inputCls =
+    'px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const Register = () => {
     const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [serverError, setServerError] = useState('');
 
     const {
         register,
         handleSubmit,
-        watch,
-        formState: { errors },
-    } = useForm<RegisterData>({
+        formState: { errors, isSubmitting },
+    } = useForm<RegisterForm>({
+        resolver: zodResolver(registerSchema),
         defaultValues: {
             fullName: '',
             phone: '',
@@ -29,18 +67,13 @@ const Register = () => {
         },
     });
 
-    const password = watch('password');
-
-    const onSubmit = async (data: RegisterData) => {
+    const onSubmit = async (data: RegisterForm) => {
+        setServerError('');
         try {
-            setLoading(true);
-            setError('');
             await authService.register(data);
             router.push('/profile');
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Registration failed');
-        } finally {
-            setLoading(false);
+            setServerError(err.response?.data?.message || 'Registration failed');
         }
     };
 
@@ -52,13 +85,13 @@ const Register = () => {
                         Create Account
                     </h1>
 
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                            {error}
+                    {serverError && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                            {serverError}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+                    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
                         {/* Full Name */}
                         <div className="flex flex-col gap-2">
                             <label className="text-base font-medium text-[#0B0F0E]">
@@ -67,14 +100,9 @@ const Register = () => {
                             <input
                                 type="text"
                                 placeholder="Enter your full name"
-                                {...register('fullName', {
-                                    required: 'Full name is required',
-                                    minLength: {
-                                        value: 3,
-                                        message: 'Name must be at least 3 characters',
-                                    },
-                                })}
-                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                autoComplete="name"
+                                {...register('fullName')}
+                                className={inputCls}
                             />
                             {errors.fullName && (
                                 <span className="text-sm text-red-500">
@@ -83,7 +111,7 @@ const Register = () => {
                             )}
                         </div>
 
-                        {/* Phone Number */}
+                        {/* Phone */}
                         <div className="flex flex-col gap-2">
                             <label className="text-base font-medium text-[#0B0F0E]">
                                 Phone Number
@@ -91,18 +119,9 @@ const Register = () => {
                             <input
                                 type="tel"
                                 placeholder="Enter your phone number"
-                                {...register('phone', {
-                                    required: 'Phone number is required',
-                                    pattern: {
-                                        value: /^[0-9+\-\s()]+$/,
-                                        message: 'Invalid phone number format',
-                                    },
-                                    minLength: {
-                                        value: 10,
-                                        message: 'Phone number must be at least 10 digits',
-                                    },
-                                })}
-                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                autoComplete="tel"
+                                {...register('phone')}
+                                className={inputCls}
                             />
                             {errors.phone && (
                                 <span className="text-sm text-red-500">
@@ -111,21 +130,18 @@ const Register = () => {
                             )}
                         </div>
 
-                        {/* Email (Optional) */}
+                        {/* Email (optional) */}
                         <div className="flex flex-col gap-2">
                             <label className="text-base font-medium text-[#0B0F0E]">
-                                Email Address <span className="text-[#818B9C] font-normal">(Optional)</span>
+                                Email Address{' '}
+                                <span className="text-[#818B9C] font-normal">(Optional)</span>
                             </label>
                             <input
                                 type="email"
                                 placeholder="Enter your email (optional)"
-                                {...register('email', {
-                                    pattern: {
-                                        value: /^\S+@\S+$/i,
-                                        message: 'Invalid email address',
-                                    },
-                                })}
-                                className="px-4 py-3 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                autoComplete="email"
+                                {...register('email')}
+                                className={inputCls}
                             />
                             {errors.email && (
                                 <span className="text-sm text-red-500">
@@ -143,22 +159,13 @@ const Register = () => {
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Enter your password"
-                                    {...register('password', {
-                                        required: 'Password is required',
-                                        minLength: {
-                                            value: 8,
-                                            message: 'Password must be at least 8 characters',
-                                        },
-                                        pattern: {
-                                            value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                                            message: 'Password must contain uppercase, lowercase, and number',
-                                        },
-                                    })}
-                                    className="w-full px-4 py-3 pr-12 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                    autoComplete="new-password"
+                                    {...register('password')}
+                                    className={`w-full pr-12 ${inputCls}`}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setShowPassword((prev) => !prev)}
+                                    onClick={() => setShowPassword((p) => !p)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818B9C] hover:text-[#C85A3A]"
                                     aria-label="Toggle password visibility"
                                 >
@@ -181,16 +188,13 @@ const Register = () => {
                                 <input
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     placeholder="Confirm your password"
-                                    {...register('confirmPassword', {
-                                        required: 'Please confirm your password',
-                                        validate: (value) =>
-                                            value === password || 'Passwords do not match',
-                                    })}
-                                    className="w-full px-4 py-3 pr-12 border border-[#E4E9EE] rounded-lg text-base transition-all duration-300 focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20"
+                                    autoComplete="new-password"
+                                    {...register('confirmPassword')}
+                                    className={`w-full pr-12 ${inputCls}`}
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                    onClick={() => setShowConfirmPassword((p) => !p)}
                                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#818B9C] hover:text-[#C85A3A]"
                                     aria-label="Toggle confirm password visibility"
                                 >
@@ -204,16 +208,16 @@ const Register = () => {
                             )}
                         </div>
 
-                        {/* Submit Button */}
+                        {/* Submit */}
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] focus-visible:outline-2 focus-visible:outline-[#C85A3A] focus-visible:outline-offset-2 active:translate-y-0 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={isSubmitting}
+                            className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all duration-300 hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(200,90,58,0.3)] disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 mt-2"
                         >
-                            {loading ? 'Creating Account...' : 'Create Account'}
+                            {isSubmitting ? 'Creating Account…' : 'Create Account'}
                         </button>
 
-                        {/* Login Link */}
+                        {/* Login link */}
                         <div className="text-center mt-2">
                             <span className="text-base text-[#818B9C]">
                                 Already have an account?{' '}

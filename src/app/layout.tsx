@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import QueryProvider from "@/providers/QueryProvider";
 import BackendWarmup from "@/components/common/BackendWarmup";
 import { ToastProvider } from "@/providers/ToastProvider";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const clashGrotesk = localFont({
   src: "../assets/font/clash-grotesk/ClashGrotesk-Variable.ttf",
@@ -28,10 +29,12 @@ export default function RootLayout({
       <body className={`${clashGrotesk.variable} antialiased`}>
         <QueryProvider>
           <ToastProvider>
-            <BackendWarmup />
-            <Navbar />
-            {children}
-            <Footer />
+            <ErrorBoundary>
+              <BackendWarmup />
+              <Navbar />
+              {children}
+              <Footer />
+            </ErrorBoundary>
           </ToastProvider>
         </QueryProvider>
       </body>

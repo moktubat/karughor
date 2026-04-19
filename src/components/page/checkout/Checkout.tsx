@@ -2,35 +2,56 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdKeyboardArrowRight } from 'react-icons/md';
-import { FaMapMarkerAlt, FaPhone, FaUser, FaEnvelope, FaSpinner } from 'react-icons/fa';
+import {
+    FaMapMarkerAlt,
+    FaPhone,
+    FaUser,
+    FaEnvelope,
+    FaSpinner,
+} from 'react-icons/fa';
 import Link from 'next/link';
-import { useCartStore } from '@/store/cartStore';
-import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
+import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
+import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
-interface CheckoutFormValues {
-    fullName: string;
-    phone: string;
-    email?: string;
-    address: string;
-    city: string;
-    area: string;
-    deliveryLocation: 'inside_dhaka' | 'outside_dhaka';
-    notes?: string;
-}
+const checkoutSchema = z.object({
+    fullName: z.string().min(1, 'Name is required'),
+    phone: z
+        .string()
+        .min(1, 'Phone is required')
+        .refine((val) => {
+            const stripped = val.replace(/^(\+?880)/, '');
+            return /^01[3-9]\d{8}$/.test(stripped);
+        }, 'Enter a valid BD number (e.g. 01712345678)'),
+    email: z.string().email('Invalid email').optional().or(z.literal('')),
+    deliveryLocation: z.enum(['inside_dhaka', 'outside_dhaka']),
+    city: z.string().min(1, 'City is required'),
+    area: z.string().min(1, 'Area is required'),
+    address: z.string().min(1, 'Address is required'),
+    notes: z.string().optional(),
+});
 
-const inputCls = "px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20";
+type CheckoutForm = z.infer<typeof checkoutSchema>;
+
+const inputCls =
+    'px-4 py-3 border border-[#E4E9EE] rounded-lg text-base focus:outline-none focus:border-[#C85A3A] focus:ring-2 focus:ring-[#C85A3A]/20';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const Checkout = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { items, clearCart } = useCartStore();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const { isAuthenticated, user } = useAuthStore();
+    const [serverError, setServerError] = useState('');
 
     const rawDelivery = searchParams.get('delivery');
     const defaultDelivery: 'inside_dhaka' | 'outside_dhaka' =
@@ -38,8 +59,23 @@ const Checkout = () => {
             ? rawDelivery
             : 'inside_dhaka';
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutFormValues>({
-        defaultValues: { deliveryLocation: defaultDelivery },
+    const {
+        register,
+        handleSubmit,
+        watch,
+        formState: { errors, isSubmitting },
+    } = useForm<CheckoutForm>({
+        resolver: zodResolver(checkoutSchema),
+        defaultValues: {
+            deliveryLocation: defaultDelivery,
+            // Pre-fill from logged-in user profile
+            fullName: user?.fullName || '',
+            phone: user?.phone || '',
+            email: user?.email || '',
+            city: user?.address?.city || '',
+            area: user?.address?.area || '',
+            address: user?.address?.street || '',
+        },
     });
 
     const { data: settingsData } = useQuery({
@@ -73,54 +109,46 @@ const Checkout = () => {
         );
     }
 
-    const onSubmit = async (data: CheckoutFormValues) => {
-        setLoading(true);
-        setError('');
-
+    const onSubmit = async (data: CheckoutForm) => {
+        setServerError('');
         try {
-            const res = await api.post(
-                '/orders/guest',
-                {
-                    customer: {
-                        name: data.fullName,
-                        phone: data.phone,
-                        email: data.email || '',
-                        address: {
-                            street: data.address,
-                            area: data.area,
-                            city: data.city,
-                            deliveryLocation: data.deliveryLocation,
-                        },
+            const payload = {
+                customer: {
+                    name: data.fullName,
+                    phone: data.phone,
+                    email: data.email || '',
+                    address: {
+                        street: data.address,
+                        area: data.area,
+                        city: data.city,
+                        deliveryLocation: data.deliveryLocation,
                     },
-                    items: items.map(i => ({
-                        productId: i.id,
-                        quantity: i.quantity,
-                    })),
-                    notes: data.notes || '',
                 },
-            );
+                items: items.map((i) => ({ productId: i.id, quantity: i.quantity })),
+                notes: data.notes || '',
+            };
 
-            const orderNumber =
-                res.data?.data?.order?.orderNumber || '';
+            // Use authenticated endpoint when logged in so userId is attached to the order.
+            // This makes the order visible in "My Orders" immediately.
+            const endpoint = isAuthenticated ? '/orders' : '/orders/guest';
+            const res = await api.post(endpoint, payload, { withCredentials: true });
 
+            const orderNumber = res.data?.data?.order?.orderNumber || '';
             clearCart();
-
             router.push(`/order-success?orderNumber=${orderNumber}`);
-
         } catch (err: any) {
-            setError(
+            setServerError(
                 err.response?.data?.error?.message ||
                 err.response?.data?.message ||
                 'Failed to place order. Please try again.'
             );
-        } finally {
-            setLoading(false);
         }
     };
 
     return (
         <div className="bg-white w-full min-h-screen py-12 px-4">
             <div className="max-w-300 mx-auto">
+                {/* Breadcrumb */}
                 <nav className="flex items-center gap-2 text-sm md:text-base font-medium text-[#818B9C] select-none flex-wrap mb-8">
                     <Link href="/" className="text-[#C85A3A] hover:underline">Home</Link>
                     <MdKeyboardArrowRight />
@@ -131,25 +159,45 @@ const Checkout = () => {
 
                 <h1 className="text-3xl md:text-4xl font-bold text-[#0B0F0E] mb-8">Checkout</h1>
 
-                {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+                {/* Logged-in notice */}
+                {isAuthenticated && (
+                    <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
+                        ✅ You are logged in — this order will appear in your profile.
+                    </div>
                 )}
 
-                <form onSubmit={handleSubmit(onSubmit)}>
+                {serverError && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                        {serverError}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit(onSubmit)} noValidate>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Left — Delivery Info */}
                         <div className="lg:col-span-2">
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
-                                <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">Delivery Information</h2>
+                                <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">
+                                    Delivery Information
+                                </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    {/* Full Name */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaUser className="text-[#C85A3A]" /> Full Name
                                         </label>
-                                        <input type="text" placeholder="Your full name" {...register('fullName', { required: 'Name is required' })} className={inputCls} />
-                                        {errors.fullName && <span className="text-sm text-red-500">{errors.fullName.message}</span>}
+                                        <input
+                                            type="text"
+                                            placeholder="Your full name"
+                                            {...register('fullName')}
+                                            className={inputCls}
+                                        />
+                                        {errors.fullName && (
+                                            <span className="text-sm text-red-500">{errors.fullName.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Phone */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaPhone className="text-[#C85A3A]" /> Phone Number
@@ -157,61 +205,103 @@ const Checkout = () => {
                                         <input
                                             type="tel"
                                             placeholder="01XXXXXXXXX"
-                                            {...register('phone', {
-                                                required: 'Phone is required',
-                                                validate: (val) => {
-                                                    const stripped = val.replace(/^(\+?880)/, '');
-                                                    return /^01[3-9]\d{8}$/.test(stripped) || 'Enter a valid BD number (e.g. 01712345678)';
-                                                },
-                                            })}
+                                            {...register('phone')}
                                             className={inputCls}
                                         />
-                                        {errors.phone && <span className="text-sm text-red-500">{errors.phone.message}</span>}
+                                        {errors.phone && (
+                                            <span className="text-sm text-red-500">{errors.phone.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Email */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
-                                            <FaEnvelope className="text-[#C85A3A]" /> Email <span className="text-[#818B9C] text-sm">(Optional)</span>
+                                            <FaEnvelope className="text-[#C85A3A]" /> Email{' '}
+                                            <span className="text-[#818B9C] text-sm">(Optional)</span>
                                         </label>
-                                        <input type="email" placeholder="your@email.com" {...register('email')} className={inputCls} />
+                                        <input
+                                            type="email"
+                                            placeholder="your@email.com"
+                                            {...register('email')}
+                                            className={inputCls}
+                                        />
+                                        {errors.email && (
+                                            <span className="text-sm text-red-500">{errors.email.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Delivery Location */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E] flex items-center gap-2">
                                             <FaMapMarkerAlt className="text-[#C85A3A]" /> Delivery Location
                                         </label>
                                         <select
-                                            {...register('deliveryLocation', { required: true })}
+                                            {...register('deliveryLocation')}
                                             className={`${inputCls} font-medium text-[#0B0F0E] bg-white cursor-pointer`}
                                         >
-                                            <option value="inside_dhaka">Inside Dhaka — ৳{DELIVERY_CHARGES.inside_dhaka}</option>
-                                            <option value="outside_dhaka">Outside Dhaka — ৳{DELIVERY_CHARGES.outside_dhaka}</option>
+                                            <option value="inside_dhaka">
+                                                Inside Dhaka — ৳{DELIVERY_CHARGES.inside_dhaka}
+                                            </option>
+                                            <option value="outside_dhaka">
+                                                Outside Dhaka — ৳{DELIVERY_CHARGES.outside_dhaka}
+                                            </option>
                                         </select>
                                     </div>
 
+                                    {/* City */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">City</label>
-                                        <input type="text" placeholder="e.g., Dhaka" {...register('city', { required: 'City is required' })} className={inputCls} />
-                                        {errors.city && <span className="text-sm text-red-500">{errors.city.message}</span>}
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., Dhaka"
+                                            {...register('city')}
+                                            className={inputCls}
+                                        />
+                                        {errors.city && (
+                                            <span className="text-sm text-red-500">{errors.city.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Area */}
                                     <div className="flex flex-col gap-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">Area / Thana</label>
-                                        <input type="text" placeholder="e.g., Dhanmondi" {...register('area', { required: 'Area is required' })} className={inputCls} />
-                                        {errors.area && <span className="text-sm text-red-500">{errors.area.message}</span>}
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., Dhanmondi"
+                                            {...register('area')}
+                                            className={inputCls}
+                                        />
+                                        {errors.area && (
+                                            <span className="text-sm text-red-500">{errors.area.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Full Address */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">Full Address</label>
-                                        <textarea rows={3} placeholder="House/Flat no., Road, Block..." {...register('address', { required: 'Address is required' })} className={`${inputCls} resize-none`} />
-                                        {errors.address && <span className="text-sm text-red-500">{errors.address.message}</span>}
+                                        <textarea
+                                            rows={3}
+                                            placeholder="House/Flat no., Road, Block..."
+                                            {...register('address')}
+                                            className={`${inputCls} resize-none`}
+                                        />
+                                        {errors.address && (
+                                            <span className="text-sm text-red-500">{errors.address.message}</span>
+                                        )}
                                     </div>
 
+                                    {/* Notes */}
                                     <div className="flex flex-col gap-2 md:col-span-2">
                                         <label className="text-base font-medium text-[#0B0F0E]">
-                                            Order Notes <span className="text-[#818B9C] text-sm">(Optional)</span>
+                                            Order Notes{' '}
+                                            <span className="text-[#818B9C] text-sm">(Optional)</span>
                                         </label>
-                                        <textarea rows={2} placeholder="Any special instructions..." {...register('notes')} className={`${inputCls} resize-none`} />
+                                        <textarea
+                                            rows={2}
+                                            placeholder="Any special instructions..."
+                                            {...register('notes')}
+                                            className={`${inputCls} resize-none`}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -221,20 +311,32 @@ const Checkout = () => {
                         <div className="lg:col-span-1">
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 sticky top-6">
                                 <h2 className="text-xl font-semibold text-[#0B0F0E] mb-6">Order Summary</h2>
+
                                 <div className="space-y-4 mb-6 pb-6 border-b border-[#E4E9EE]">
                                     {items.map((item) => (
                                         <div key={item.id} className="flex gap-3">
                                             <div className="w-14 h-14 bg-[#F6F6F6] rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <Image src={item.image} alt={item.name} width={40} height={40} className="object-contain" />
+                                                <Image
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    width={40}
+                                                    height={40}
+                                                    className="object-contain"
+                                                />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-[#0B0F0E] line-clamp-1">{item.name}</p>
+                                                <p className="text-sm font-semibold text-[#0B0F0E] line-clamp-1">
+                                                    {item.name}
+                                                </p>
                                                 <p className="text-xs text-[#818B9C]">Qty: {item.quantity}</p>
-                                                <p className="text-sm font-semibold text-[#C85A3A]">৳{item.price * item.quantity}</p>
+                                                <p className="text-sm font-semibold text-[#C85A3A]">
+                                                    ৳{item.price * item.quantity}
+                                                </p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
+
                                 <div className="space-y-3 mb-4">
                                     <div className="flex justify-between text-base">
                                         <span className="text-[#818B9C]">Subtotal</span>
@@ -245,26 +347,37 @@ const Checkout = () => {
                                         <span className="font-semibold text-[#0B0F0E]">৳{deliveryCharge}</span>
                                     </div>
                                 </div>
+
                                 <div className="flex justify-between items-center py-4 border-t border-[#E4E9EE] mb-4">
                                     <span className="text-xl font-semibold text-[#0B0F0E]">Total (COD)</span>
                                     <span className="text-2xl font-bold text-[#C85A3A]">৳{total}</span>
                                 </div>
+
+                                {/* Payment method */}
                                 <div className="bg-[#F7F7F7] p-4 rounded-lg mb-6">
                                     <p className="text-sm font-semibold text-[#0B0F0E] mb-2">Payment Method</p>
                                     <div className="flex items-center gap-2">
                                         <div className="w-5 h-5 rounded-full border-2 border-[#C85A3A] flex items-center justify-center">
                                             <div className="w-3 h-3 rounded-full bg-[#C85A3A]" />
                                         </div>
-                                        <span className="text-[#0B0F0E] font-medium text-sm">Cash on Delivery (COD)</span>
+                                        <span className="text-[#0B0F0E] font-medium text-sm">
+                                            Cash on Delivery (COD)
+                                        </span>
                                     </div>
                                 </div>
+
                                 <button
                                     type="submit"
-                                    disabled={loading}
-                                    className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    disabled={isSubmitting}
+                                    className="w-full px-8 py-4 bg-[#C85A3A] text-white rounded-lg text-lg font-semibold transition-all hover:bg-[#A84830] hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
                                 >
-                                    {loading ? <><FaSpinner className="animate-spin" /> Placing Order...</> : 'Place Order'}
+                                    {isSubmitting ? (
+                                        <><FaSpinner className="animate-spin" /> Placing Order…</>
+                                    ) : (
+                                        'Place Order'
+                                    )}
                                 </button>
+
                                 <p className="text-xs text-center text-[#818B9C] mt-4">
                                     By placing your order you agree to our terms and conditions
                                 </p>
