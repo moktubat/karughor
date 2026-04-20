@@ -31,7 +31,8 @@ type TopProduct = {
 const Revenue = () => {
     const [selectedPeriod, setSelectedPeriod] = useState<Period>('month');
 
-    const { data, isLoading } = useQuery({
+    // Period-scoped revenue data (uses existing endpoint)
+    const { data: periodData, isLoading: periodLoading } = useQuery({
         queryKey: ['admin-revenue', selectedPeriod],
         queryFn: async () => {
             const res = await api.get(`/admin/revenue/stats?period=${selectedPeriod}`);
@@ -39,32 +40,27 @@ const Revenue = () => {
         },
     });
 
-    // Also fetch order counts for delivered/cancelled/returned
-    const { data: ordersData } = useQuery({
-        queryKey: ['admin-orders-summary'],
+    // ── NEW: single aggregated stats call — replaces the limit=1000 orders fetch ──
+    const { data: statsData, isLoading: statsLoading } = useQuery({
+        queryKey: ['admin-stats'],
         queryFn: async () => {
-            const res = await api.get(`/orders/admin/all?limit=1000`);
-            const orders = res.data.data.orders as any[];
-
-            return {
-                delivered: orders.filter(o => o.status === 'delivered').length,
-                cancelled: orders.filter(o => o.status === 'cancelled').length,
-                returned: orders.filter(o => o.status === 'returned').length,
-                pending: orders.filter(o =>
-                    ['new', 'confirmed', 'shipped'].includes(o.status)
-                ).length,
-            };
+            const res = await api.get('/admin/stats');
+            return res.data.data;
         },
         staleTime: 60_000,
     });
 
-    const revenue = data?.revenue;
-    const dailySales: DailySale[] = data?.dailySales || [];
-    const topProducts: TopProduct[] = data?.topProducts || [];
+    const isLoading = periodLoading || statsLoading;
 
+    const revenue = periodData?.revenue;
+    const dailySales: DailySale[] = periodData?.dailySales || [];
+    const topProducts: TopProduct[] = statsData?.topProducts || periodData?.topProducts || [];
+
+    const ordersData = statsData?.counts;   // { delivered, cancelled, returned, pending }
     const totalRevenue = revenue?.total || 0;
-    const pendingCod = ordersData
-        ? (ordersData.pending * (totalRevenue / Math.max((ordersData.delivered || 1), 1)) * 0.3)
+
+    const pendingCod = ordersData && ordersData.delivered > 0
+        ? (ordersData.pending * (totalRevenue / ordersData.delivered) * 0.3)
         : 0;
 
     const cancellationRate = ordersData && (ordersData.delivered + ordersData.cancelled) > 0
@@ -136,7 +132,7 @@ const Revenue = () => {
                         <p className="text-xs text-[#818B9C] mt-2">From this period</p>
                     </div>
 
-                    {/* Delivered Orders */}
+                    {/* Delivered Orders (all-time from stats) */}
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-purple-50 p-3 rounded-lg text-purple-600">
@@ -158,32 +154,22 @@ const Revenue = () => {
                                 <FaTruck className="w-6 h-6" />
                             </div>
                         </div>
-
-                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">
-                            Pending Orders
-                        </h3>
-
-                        {isLoading || !ordersData ? (
-                            <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
-                        ) : (
-                            <p className="text-3xl font-bold text-[#0B0F0E]">
-                                {ordersData.pending}
-                            </p>
-                        )}
-
-                        {isLoading || !ordersData ? (
-                            <div className="h-4 bg-gray-100 rounded animate-pulse w-1/3 mt-2" />
-                        ) : (
-                            <p className="text-sm text-[#818B9C] mt-1">
+                        <h3 className="text-[#818B9C] text-sm font-medium mb-1">Pending Orders</h3>
+                        {isLoading || !ordersData
+                            ? <div className="h-8 bg-gray-100 rounded animate-pulse w-1/2" />
+                            : <p className="text-3xl font-bold text-[#0B0F0E]">{ordersData.pending}</p>
+                        }
+                        {isLoading || !ordersData
+                            ? <div className="h-4 bg-gray-100 rounded animate-pulse w-1/3 mt-2" />
+                            : <p className="text-sm text-[#818B9C] mt-1">
                                 Est. COD: ৳{pendingCod.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                             </p>
-                        )}
-
+                        }
                         <p className="text-xs text-[#818B9C] mt-2">In transit</p>
                     </div>
                 </div>
 
-                {/* Order Status Overview — only show if ordersData has data */}
+                {/* Order Status Overview */}
                 {ordersData && (ordersData.delivered > 0 || ordersData.cancelled > 0 || ordersData.returned > 0) && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
@@ -255,11 +241,10 @@ const Revenue = () => {
                     </div>
                 )}
 
-                {/* Daily Sales & Top Products — only shown if data exists */}
+                {/* Daily Sales & Top Products */}
                 {!isLoading && (dailySales.length > 0 || topProducts.length > 0) && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                        {/* Daily Sales */}
                         {dailySales.length > 0 && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Daily Sales</h2>
@@ -299,7 +284,6 @@ const Revenue = () => {
                             </div>
                         )}
 
-                        {/* Top Products */}
                         {topProducts.length > 0 && (
                             <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Top Products</h2>
@@ -331,7 +315,7 @@ const Revenue = () => {
                     </div>
                 )}
 
-                {/* Loading state for bottom section */}
+                {/* Loading skeleton for bottom section */}
                 {isLoading && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {[0, 1].map(i => (
@@ -345,7 +329,7 @@ const Revenue = () => {
                     </div>
                 )}
 
-                {/* Empty state — only shown after loading with no data */}
+                {/* Empty state */}
                 {!isLoading && dailySales.length === 0 && topProducts.length === 0 && (
                     <div className="bg-white border border-[#E4E9EE] rounded-lg p-16 text-center">
                         <FaDollarSign className="w-12 h-12 mx-auto mb-4 text-[#E4E9EE]" />
