@@ -101,18 +101,18 @@ const Settings = () => {
     }
 
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-250 mx-auto">
+        <div className="bg-[#F7F7F7] min-h-screen p-4">
+            <div className="max-w-300 mx-auto">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Settings</h1>
                     <p className="text-[#818B9C]">Configure your store settings</p>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {/* COD */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Cash on Delivery (COD)</h2>
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             <div className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg">
                                 <div>
                                     <h3 className="font-semibold text-[#0B0F0E] mb-1">Enable COD</h3>
@@ -139,7 +139,7 @@ const Settings = () => {
                     </div>
 
                     {/* Delivery Charges */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Delivery Charges</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="flex flex-col gap-2">
@@ -168,7 +168,7 @@ const Settings = () => {
                     </div>
 
                     {/* Tax */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Tax Settings</h2>
                         <div className="flex flex-col gap-2">
                             <label className="text-base font-medium text-[#0B0F0E]">Tax Percentage (%)</label>
@@ -186,7 +186,7 @@ const Settings = () => {
                     </div>
 
                     {/* Auto-Cancel */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                         <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Order Auto-Cancel</h2>
                         <div className="space-y-6">
                             <div className="flex items-center justify-between p-4 bg-[#F7F7F7] rounded-lg">
@@ -217,7 +217,7 @@ const Settings = () => {
 
                 {/* Sticky save bar */}
                 {hasChanges && (
-                    <div className="sticky bottom-6 mt-8 bg-white border border-[#E4E9EE] rounded-lg p-6 shadow-lg">
+                    <div className="sticky bottom-6 mt-8 bg-white border border-[#E4E9EE] rounded-lg p-4 shadow-lg">
                         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
                             <p className="text-[#818B9C]">You have unsaved changes</p>
                             <div className="flex gap-4">

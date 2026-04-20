@@ -162,17 +162,17 @@ const AdminProfile = () => {
     }
 
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
+        <div className="bg-[#F7F7F7] min-h-screen ps-4 py-4">
             <div className="max-w-300 mx-auto">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-[#0B0F0E] mb-2">Admin Profile</h1>
                     <p className="text-[#818B9C]">Manage your account and store settings</p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                     {/* Sidebar */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                        <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative">
                                     <div className="w-32 h-32 rounded-full bg-[#F6F6F6] flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
@@ -215,7 +215,7 @@ const AdminProfile = () => {
 
                         {/* Personal Info */}
                         {activeTab === 'profile' && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 md:p-8">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <h2 className="text-2xl font-bold text-[#0B0F0E] mb-2">Personal Information</h2>
                                 <p className="text-sm text-[#818B9C] mb-6">
                                     Your login email is <span className="font-semibold text-[#0B0F0E]">{adminData?.email}</span> — to change it, update it here and use the new email to log in next time.

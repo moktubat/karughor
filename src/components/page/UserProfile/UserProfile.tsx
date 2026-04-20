@@ -124,23 +124,25 @@ const UserProfile = () => {
             });
             return res.data;
         },
-        enabled: activeTab === 'orders' && !!user,
+        // Always enabled so orders load on mount; refetch when tab opens
+        enabled: !!user,
         retry: 1,
         refetchInterval: activeTab === 'orders' ? 30_000 : false,
     });
 
-    // Trigger fetch as soon as the orders tab is opened
+    // Refetch whenever the orders tab becomes active
     useEffect(() => {
         if (activeTab === 'orders') refetchOrders();
     }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Wishlist — always fetch on mount so it's ready when tab opens
     const { data: wishlistData, isLoading: wishlistLoading } = useQuery({
         queryKey: ['userWishlist'],
         queryFn: async () => {
             const res = await api.get('/users/wishlist', { withCredentials: true });
             return res.data;
         },
-        enabled: activeTab === 'wishlist' && !!user,
+        enabled: !!user,
         retry: 1,
     });
 
@@ -260,7 +262,8 @@ const UserProfile = () => {
         }
     };
 
-    // ── Derived data — safe fallbacks at every level ───────────────────────────
+    // ── Loading ────────────────────────────────────────────────────────────────
+
     if (profileLoading) {
         return (
             <div className="bg-[#F7F7F7] w-full min-h-screen flex items-center justify-center">
@@ -270,14 +273,11 @@ const UserProfile = () => {
     }
 
     const currentUser = profileData?.data?.user || user;
-
-    // The backend returns { success, data: { orders: [...] } }
     const orders: any[] = ordersData?.data?.orders ?? [];
-
-    // The backend returns { success, data: { wishlist: [...] } }
     const wishlist: any[] = wishlistData?.data?.wishlist ?? [];
 
     // ── Render ─────────────────────────────────────────────────────────────────
+
     return (
         <div className="bg-[#F7F7F7] w-full min-h-screen py-12 px-4">
             <div className="max-w-300 mx-auto">
@@ -289,11 +289,12 @@ const UserProfile = () => {
                 </nav>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
                     {/* ── Sidebar ── */}
                     <div className="lg:col-span-1">
                         <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
                             <div className="flex flex-col items-center mb-6">
-                                <div className="relative group">
+                                <div className="relative">
                                     <div className="w-32 h-32 rounded-full bg-[#F6F6F6] flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
                                         {currentUser?.profileImage ? (
                                             <Image
@@ -477,14 +478,22 @@ const UserProfile = () => {
                                                         {order.items?.slice(0, 3).map((item: any, idx: number) => (
                                                             <div key={idx} className="flex items-center gap-2 bg-[#F7F7F7] rounded-md px-3 py-1.5 text-xs text-[#0B0F0E]">
                                                                 {item.productImage && (
-                                                                    <Image src={item.productImage} alt={item.productName || ''} width={24} height={24} className="rounded object-cover" />
+                                                                    <Image
+                                                                        src={item.productImage}
+                                                                        alt={item.productName || ''}
+                                                                        width={24}
+                                                                        height={24}
+                                                                        className="rounded object-cover"
+                                                                    />
                                                                 )}
                                                                 <span className="line-clamp-1 max-w-[120px]">{item.productName}</span>
                                                                 <span className="text-[#818B9C]">×{item.quantity}</span>
                                                             </div>
                                                         ))}
                                                         {order.items?.length > 3 && (
-                                                            <span className="text-xs text-[#818B9C] self-center">+{order.items.length - 3} more</span>
+                                                            <span className="text-xs text-[#818B9C] self-center">
+                                                                +{order.items.length - 3} more
+                                                            </span>
                                                         )}
                                                     </div>
 
@@ -564,6 +573,7 @@ const UserProfile = () => {
                                                 salePrice={`৳${product.price}`}
                                                 originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
                                                 stock={product.stock}
+                                                isLiked={true}
                                             />
                                         ))}
                                     </div>
@@ -571,12 +581,12 @@ const UserProfile = () => {
                                     <div className="text-center py-16 text-[#818B9C]">
                                         <FaHeart className="w-16 h-16 mx-auto mb-4 text-[#E4E9EE]" />
                                         <p className="font-semibold">Your wishlist is empty</p>
-                                        <p className="text-sm mt-1">
-                                            Heart a product on the product page to save it here.
-                                        </p>
-                                        <p className="text-xs text-[#818B9C] mt-2">
-                                            Note: You must be logged in for wishlist to sync.
-                                        </p>
+                                        <p className="text-sm mt-1">Heart a product to save it here.</p>
+                                        <Link href="/products">
+                                            <button className="mt-5 px-6 py-2.5 bg-[#C85A3A] text-white rounded-lg text-sm font-semibold hover:bg-[#A84830] transition-colors">
+                                                Browse Products
+                                            </button>
+                                        </Link>
                                     </div>
                                 )}
                             </div>

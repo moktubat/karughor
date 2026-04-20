@@ -9,6 +9,8 @@ import Image from 'next/image';
 import { MdOutlineRemoveRedEye } from 'react-icons/md';
 import { useCartStore } from '@/store/cartStore';
 import { useToast } from '@/providers/ToastProvider';
+import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 
 interface ProductCardProps {
     id: string;
@@ -38,11 +40,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const { showError, showSuccess } = useToast();
     const router = useRouter();
     const { addItem, items } = useCartStore();
+    const { isAuthenticated } = useAuthStore();
 
-    const handleLikeClick = (e: React.MouseEvent) => {
+    const handleLikeClick = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Always toggle local state immediately for instant UI feedback
         onToggleLike?.(id, e);
+
+        // If logged in, also sync with backend
+        if (isAuthenticated) {
+            try {
+                if (isLiked) {
+                    // Currently liked → remove from wishlist
+                    await api.delete(`/users/wishlist/${id}`, { withCredentials: true });
+                } else {
+                    // Not liked → add to wishlist
+                    await api.post(`/users/wishlist/${id}`, {}, { withCredentials: true });
+                }
+            } catch (err: any) {
+                // Ignore "already in wishlist" errors silently
+                const msg = err?.response?.data?.message || '';
+                if (!msg.includes('already')) {
+                    showError('Could not update wishlist');
+                }
+            }
+        }
     };
 
     const handleCartClick = (e: React.MouseEvent) => {
@@ -114,9 +138,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     <div className="flex justify-end p-3">
                         <button
                             onClick={handleLikeClick}
-                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform ${
-                                isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'
-                            }`}
+                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform ${isLiked ? 'text-[#C85A3A]' : 'text-[#818B9C]'
+                                }`}
+                            aria-label={isLiked ? 'Remove from wishlist' : 'Add to wishlist'}
                         >
                             {isLiked ? <FaHeart /> : <FaRegHeart />}
                         </button>
@@ -126,9 +150,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         <button
                             onClick={handleCartClick}
                             disabled={stock === 0}
-                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform text-[#818B9C] hover:text-[#C85A3A] ${
-                                stock === 0 ? 'opacity-40 cursor-not-allowed' : ''
-                            }`}
+                            className={`w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform text-[#818B9C] hover:text-[#C85A3A] ${stock === 0 ? 'opacity-40 cursor-not-allowed' : ''
+                                }`}
+                            aria-label="Add to cart"
                         >
                             <FaCartPlus />
                         </button>
@@ -136,6 +160,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                         <button
                             onClick={handleViewClick}
                             className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform text-[#818B9C] hover:text-[#C85A3A]"
+                            aria-label="View product"
                         >
                             <MdOutlineRemoveRedEye />
                         </button>

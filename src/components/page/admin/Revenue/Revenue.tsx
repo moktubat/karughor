@@ -78,7 +78,7 @@ const Revenue = () => {
     const weeklyTotal = dailySales.reduce((sum, d) => sum + (d.revenue || 0), 0);
 
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
+        <div className="bg-[#F7F7F7] min-h-screen p-4">
             <div className="max-w-350 mx-auto">
 
                 {/* Header */}
@@ -104,10 +104,10 @@ const Revenue = () => {
                 </div>
 
                 {/* Revenue Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
 
                     {/* Total Revenue */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-green-50 p-3 rounded-lg text-green-600">
                                 <FaDollarSign className="w-6 h-6" />
@@ -122,7 +122,7 @@ const Revenue = () => {
                     </div>
 
                     {/* Orders Count */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-blue-50 p-3 rounded-lg text-blue-600">
                                 <FaCalendarAlt className="w-6 h-6" />
@@ -137,7 +137,7 @@ const Revenue = () => {
                     </div>
 
                     {/* Delivered Orders */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-purple-50 p-3 rounded-lg text-purple-600">
                                 <FaCheckCircle className="w-6 h-6" />
@@ -152,7 +152,7 @@ const Revenue = () => {
                     </div>
 
                     {/* Pending COD */}
-                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white border border-[#E4E9EE] rounded-lg p-4 hover:shadow-lg transition-shadow">
                         <div className="flex items-start justify-between mb-4">
                             <div className="bg-orange-50 p-3 rounded-lg text-orange-600">
                                 <FaTruck className="w-6 h-6" />
@@ -188,7 +188,7 @@ const Revenue = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
                         {ordersData.delivered > 0 && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="bg-green-50 p-4 rounded-lg text-green-600">
                                         <FaCheckCircle className="w-8 h-8" />
@@ -210,7 +210,7 @@ const Revenue = () => {
                         )}
 
                         {ordersData.cancelled > 0 && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="bg-red-50 p-4 rounded-lg text-red-600">
                                         <FaTimes className="w-8 h-8" />
@@ -232,7 +232,7 @@ const Revenue = () => {
                         )}
 
                         {ordersData.returned > 0 && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="bg-orange-50 p-4 rounded-lg text-orange-600">
                                         <FaUndo className="w-8 h-8" />
@@ -261,7 +261,7 @@ const Revenue = () => {
 
                         {/* Daily Sales */}
                         {dailySales.length > 0 && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Daily Sales</h2>
                                 <div className="space-y-4">
                                     {dailySales.map((day) => (
@@ -301,7 +301,7 @@ const Revenue = () => {
 
                         {/* Top Products */}
                         {topProducts.length > 0 && (
-                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-6">
+                            <div className="bg-white border border-[#E4E9EE] rounded-lg p-4">
                                 <h2 className="text-xl font-bold text-[#0B0F0E] mb-6">Top Products</h2>
                                 <div className="space-y-4">
                                     {topProducts.map((product, index) => (

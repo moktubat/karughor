@@ -142,8 +142,8 @@ const Notifications = () => {
     const isLoading = ordersLoading || stockLoading;
 
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
-            <div className="max-w-250 mx-auto">
+        <div className="bg-[#F7F7F7] min-h-screen p-4">
+            <div className="max-w-300 mx-auto">
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div>

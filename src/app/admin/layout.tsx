@@ -120,7 +120,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                                             <Link
                                                 href={item.href}
                                                 onClick={() => setSidebarOpen(false)}
-                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isActive(item.href)
+                                                className={`flex items-center gap-3 px-3 py-2 rounded-lg font-medium ${isActive(item.href)
                                                         ? 'bg-[#C85A3A] text-white'
                                                         : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                                     }`}

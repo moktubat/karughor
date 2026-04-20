@@ -134,7 +134,7 @@ const OrdersManagement = () => {
 
     // ── render ────────────────────────────────────────────────────────────────
     return (
-        <div className="bg-[#F7F7F7] min-h-screen p-6">
+        <div className="bg-[#F7F7F7] min-h-screen p-4">
             <div className="max-w-350 mx-auto">
 
                 {/* Header */}
