@@ -1,5 +1,3 @@
-'use client';
-
 import ForgotPassword from "@/components/page/forgotPassword/ForgotPassword";
 import { Metadata } from "next";
 
