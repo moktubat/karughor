@@ -7,7 +7,6 @@ import { useLikedProducts } from '../../../hooks/useLikedProducts';
 import { ProductCard } from '@/components/common/ProductCard';
 import api from '@/lib/api';
 
-
 const INITIAL_DISPLAY = 12;
 const LOAD_MORE_COUNT = 8;
 
@@ -67,13 +66,8 @@ const ProductsSection = () => {
                                     id={product._id}
                                     name={product.name}
                                     image={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
-                                    salePrice={`৳${product.price}`}
-                                    originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
-                                    discount={
-                                        product.originalPrice && product.price < product.originalPrice
-                                            ? `${Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% Off`
-                                            : undefined
-                                    }
+                                    price={product.price}
+                                    originalPrice={product.originalPrice}
                                     rating={product.rating}
                                     isLiked={likedProducts.has(product._id)}
                                     onToggleLike={toggleLike}

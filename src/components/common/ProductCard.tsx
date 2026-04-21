@@ -16,8 +16,9 @@ interface ProductCardProps {
     id: string;
     name: string;
     image: string;
-    originalPrice?: string;
-    salePrice: string;
+    price: number;
+    originalPrice?: number;
+    salePrice?: string;
     discount?: string;
     rating?: string;
     isLiked?: boolean;
@@ -29,6 +30,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     id,
     name,
     image,
+    price,
     originalPrice,
     salePrice,
     discount,
@@ -42,25 +44,31 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     const { addItem, items } = useCartStore();
     const { isAuthenticated } = useAuthStore();
 
+    const numericPrice = price;
+    const numericOriginalPrice = originalPrice;
+
+    const displayPrice = salePrice ?? `৳${numericPrice}`;
+    const displayOriginalPrice = numericOriginalPrice ? `৳${numericOriginalPrice}` : undefined;
+    const displayDiscount = discount ?? (
+        numericOriginalPrice && numericPrice < numericOriginalPrice
+            ? `${Math.round(((numericOriginalPrice - numericPrice) / numericOriginalPrice) * 100)}% Off`
+            : undefined
+    );
+
     const handleLikeClick = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
-        // Always toggle local state immediately for instant UI feedback
         onToggleLike?.(id, e);
 
-        // If logged in, also sync with backend
         if (isAuthenticated) {
             try {
                 if (isLiked) {
-                    // Currently liked → remove from wishlist
                     await api.delete(`/users/wishlist/${id}`, { withCredentials: true });
                 } else {
-                    // Not liked → add to wishlist
                     await api.post(`/users/wishlist/${id}`, {}, { withCredentials: true });
                 }
             } catch (err: any) {
-                // Ignore "already in wishlist" errors silently
                 const msg = err?.response?.data?.message || '';
                 if (!msg.includes('already')) {
                     showError('Could not update wishlist');
@@ -92,10 +100,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             id,
             name,
             image,
-            price: Number(salePrice.replace(/[^\d.]/g, '')),
-            originalPrice: originalPrice
-                ? Number(originalPrice.replace(/[^\d.]/g, ''))
-                : undefined,
+            price: numericPrice,
+            originalPrice: numericOriginalPrice,
             category: '',
         });
 
@@ -121,9 +127,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     </span>
                 )}
 
-                {discount && (
+                {displayDiscount && (
                     <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
-                        {discount}
+                        {displayDiscount}
                     </div>
                 )}
 
@@ -175,13 +181,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
                 <div className="flex items-center justify-between mt-auto">
                     <div className="flex items-center gap-2">
-                        {originalPrice && (
+                        {displayOriginalPrice && (
                             <span className="text-sm text-[#818B9C] line-through">
-                                {originalPrice}
+                                {displayOriginalPrice}
                             </span>
                         )}
                         <span className="text-base font-bold text-[#C85A3A]">
-                            {salePrice}
+                            {displayPrice}
                         </span>
                     </div>
 

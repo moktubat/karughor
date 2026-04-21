@@ -36,6 +36,12 @@ export const removeAdminToken = () => {
     if (typeof window !== 'undefined') localStorage.removeItem(ADMIN_TOKEN_KEY);
 };
 
+const clearCookieFallback = (name: string) => {
+    if (typeof document !== 'undefined') {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure`;
+    }
+};
+
 export const adminAuthHeaders = (): Record<string, string> => {
     const token = getAdminToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
@@ -64,8 +70,10 @@ export const authService = {
     logout: async () => {
         try {
             await api.post('/auth/logout', {}, { withCredentials: true });
+        } catch {
         } finally {
             localStorage.removeItem(USER_TOKEN_KEY);
+            clearCookieFallback('user_token');
             useAuthStore.getState().logout();
         }
         return { success: true };
@@ -87,6 +95,7 @@ export const authService = {
             await api.post('/auth/admin/logout').catch(() => {});
         } finally {
             removeAdminToken();
+            clearCookieFallback('admin_token');
             useAuthStore.getState().adminLogout();
         }
         return { success: true };

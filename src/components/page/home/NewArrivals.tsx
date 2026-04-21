@@ -6,7 +6,6 @@ import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '../../../hooks/useLikedProducts';
 import api from '@/lib/api';
 
-
 const NewArrivals = () => {
     const { likedProducts, toggleLike } = useLikedProducts();
 
@@ -20,7 +19,6 @@ const NewArrivals = () => {
     });
 
     const products = data || [];
-
 
     return (
         <section className="bg-[#F7F7F7] py-12">
@@ -46,21 +44,15 @@ const NewArrivals = () => {
                                     id={product._id}
                                     name={product.name}
                                     image={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
-                                    salePrice={`৳${product.price}`}
-                                    originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
-                                    discount={
-                                        product.originalPrice && product.price < product.originalPrice
-                                            ? `${Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% Off`
-                                            : undefined
-                                    }
+                                    price={product.price}
+                                    originalPrice={product.originalPrice}
                                     rating={product.rating}
                                     isLiked={likedProducts.has(product._id)}
                                     onToggleLike={toggleLike}
                                     stock={product.stock}
                                 />
                             ))
-                            : // Fallback if no products yet
-                            <div className="col-span-4 text-center py-10 text-[#818B9C]">
+                            : <div className="col-span-4 text-center py-10 text-[#818B9C]">
                                 No products yet. Add products from the admin panel.
                             </div>
                     }

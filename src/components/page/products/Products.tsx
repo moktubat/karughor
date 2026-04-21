@@ -21,13 +21,10 @@ const SORT_OPTIONS = [
     { value: '-price', label: 'Price: High to Low' },
 ];
 
-// ─── Query Key factory — stable, serialisable ──────────────────────────────────
-
 export const productKeys = {
     all: ['products'] as const,
     list: (params: Record<string, string>) =>
         [...productKeys.all, 'list', params] as const,
-    counts: () => [...productKeys.all, 'counts'] as const,
 };
 
 // ─── Fetchers ──────────────────────────────────────────────────────────────────
@@ -40,9 +37,13 @@ async function fetchProducts(params: Record<string, string>) {
     };
 }
 
-async function fetchAllProductsForCounts(): Promise<any[]> {
-    const res = await api.get('/products', { params: { limit: '1000' } });
-    return res.data.data.products;
+async function fetchCategoryCounts(): Promise<Record<string, number>> {
+    try {
+        const res = await api.get('/categories/counts');
+        return res.data.data.counts as Record<string, number>;
+    } catch {
+        return {};
+    }
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -53,20 +54,17 @@ const Products = () => {
     const queryClient = useQueryClient();
     const { likedProducts, toggleLike } = useLikedProducts();
 
-    // Derive state from URL — single source of truth
     const urlCategory = searchParams.get('category') || '';
     const urlSearch = searchParams.get('search') || '';
     const urlPage = parseInt(searchParams.get('page') || '1', 10);
     const urlSort = searchParams.get('sort') || '-createdAt';
 
-    // Keep local sort in sync with URL
     const [sortBy, setSortBy] = useState(urlSort);
 
     useEffect(() => {
         setSortBy(urlSort);
     }, [urlSort]);
 
-    // ── Build API params from URL state ────────────────────────────────────────
     const apiParams: Record<string, string> = {
         page: String(urlPage),
         limit: String(ITEMS_PER_PAGE),
@@ -74,8 +72,6 @@ const Products = () => {
     };
     if (urlCategory) apiParams.category = urlCategory;
     if (urlSearch) apiParams.search = urlSearch;
-
-    // ── Queries ────────────────────────────────────────────────────────────────
 
     const { data: productsData, isLoading: productsLoading, isFetching } = useQuery({
         queryKey: productKeys.list(apiParams),
@@ -90,13 +86,12 @@ const Products = () => {
         staleTime: 5 * 60_000,
     });
 
-    const { data: allProductsForCounts } = useQuery({
-        queryKey: productKeys.counts(),
-        queryFn: fetchAllProductsForCounts,
+    const { data: categoryCountsMap } = useQuery({
+        queryKey: ['category-counts'],
+        queryFn: fetchCategoryCounts,
         staleTime: 5 * 60_000,
     });
 
-    // ── Prefetch next page ─────────────────────────────────────────────────────
     const totalPages = productsData?.pagination?.pages || 1;
     useEffect(() => {
         if (urlPage < totalPages) {
@@ -112,29 +107,23 @@ const Products = () => {
     const categories =
         apiCategories && apiCategories.length > 0 ? apiCategories : STATIC_CATEGORIES;
     const products = productsData?.products || [];
-    const totalAll = allProductsForCounts?.length ?? 0;
 
-    // Build category count map
-    const categoryCountMap: Record<string, number> = {};
-    if (allProductsForCounts) {
-        for (const p of allProductsForCounts) {
-            const key = (p.category || '').toLowerCase();
-            categoryCountMap[key] = (categoryCountMap[key] || 0) + 1;
-        }
-    }
+    // Total across all products
+    const totalAll = categoryCountsMap
+        ? Object.values(categoryCountsMap).reduce((sum, n) => sum + n, 0)
+        : 0;
 
     const getCategoryCount = useCallback(
         (slug: string): number => {
+            if (!categoryCountsMap) return 0;
             const cat = categories.find((c: any) => c.slug === slug);
             if (!cat) return 0;
             const nameKey = cat.name.toLowerCase();
-            const slugKey = slug.toLowerCase();
-            return categoryCountMap[nameKey] ?? categoryCountMap[slugKey] ?? 0;
+            const slugKey = slug.toLowerCase().replace(/-/g, ' ');
+            return categoryCountsMap[nameKey] ?? categoryCountsMap[slugKey] ?? 0;
         },
-        [categories, categoryCountMap]
+        [categories, categoryCountsMap]
     );
-
-    // ── URL update helpers ─────────────────────────────────────────────────────
 
     const pushUrl = useCallback(
         (overrides: Record<string, string | undefined>) => {
@@ -182,8 +171,6 @@ const Products = () => {
         [pushUrl, totalPages]
     );
 
-    // ── Labels ─────────────────────────────────────────────────────────────────
-
     const activeCatLabel =
         categories.find((c: any) => c.slug === urlCategory)?.name || '';
     const headingText = urlSearch
@@ -191,8 +178,6 @@ const Products = () => {
         : activeCatLabel
             ? `${activeCatLabel}`
             : 'All Products';
-
-    // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <div className="bg-white pt-4 md:pt-8 pb-10 md:pb-20">
@@ -206,10 +191,7 @@ const Products = () => {
                     <MdKeyboardArrowRight className="text-[#818B9C]" />
                     {urlCategory ? (
                         <>
-                            <Link
-                                href="/products"
-                                className="text-[#C85A3A] font-medium hover:underline"
-                            >
+                            <Link href="/products" className="text-[#C85A3A] font-medium hover:underline">
                                 Products
                             </Link>
                             <MdKeyboardArrowRight className="text-[#818B9C]" />
@@ -222,7 +204,6 @@ const Products = () => {
                     )}
                 </nav>
 
-                {/* Heading + Filters row */}
                 <div className="mt-1">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3 flex-wrap">
@@ -235,7 +216,6 @@ const Products = () => {
                                 )}
                             </h1>
 
-                            {/* ── Clear Search Button ── */}
                             {urlSearch && (
                                 <button
                                     onClick={handleClearSearch}
@@ -255,11 +235,9 @@ const Products = () => {
                         )}
                     </div>
 
-                    {/* Category chips + Sort */}
                     <div className="flex justify-between gap-8 flex-wrap items-start mt-3">
                         <div className="flex-1">
                             <div className="flex flex-wrap gap-y-3 gap-x-6">
-                                {/* All Products */}
                                 <button
                                     onClick={() => handleCategoryClick('')}
                                     className={`text-sm font-medium transition-colors ${!urlCategory
@@ -275,7 +253,6 @@ const Products = () => {
                                     )}
                                 </button>
 
-                                {/* Per-category */}
                                 {categories.map((cat: any) => {
                                     const count = getCategoryCount(cat.slug);
                                     return (
@@ -299,12 +276,8 @@ const Products = () => {
                             </div>
                         </div>
 
-                        {/* Sort dropdown */}
                         <div className="flex items-center gap-2 shrink-0">
-                            <label
-                                htmlFor="sort-select"
-                                className="text-[#818B9C] text-sm whitespace-nowrap"
-                            >
+                            <label htmlFor="sort-select" className="text-[#818B9C] text-sm whitespace-nowrap">
                                 Sort By:
                             </label>
                             <select
@@ -334,9 +307,7 @@ const Products = () => {
                     ) : products.length === 0 ? (
                         <div className="text-center py-24 text-[#818B9C]">
                             <p className="text-5xl mb-4">🔍</p>
-                            <p className="text-xl font-semibold text-[#0B0F0E]">
-                                No products found
-                            </p>
+                            <p className="text-xl font-semibold text-[#0B0F0E]">No products found</p>
                             <p className="text-sm mt-2">
                                 {urlSearch
                                     ? `No results for "${urlSearch}"`
@@ -375,22 +346,8 @@ const Products = () => {
                                             product.images?.[0] ||
                                             'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'
                                         }
-                                        salePrice={`৳${product.price}`}
-                                        originalPrice={
-                                            product.originalPrice
-                                                ? `৳${product.originalPrice}`
-                                                : undefined
-                                        }
-                                        discount={
-                                            product.originalPrice &&
-                                                product.price < product.originalPrice
-                                                ? `${Math.round(
-                                                    ((product.originalPrice - product.price) /
-                                                        product.originalPrice) *
-                                                    100
-                                                )}% Off`
-                                                : undefined
-                                        }
+                                        price={product.price}
+                                        originalPrice={product.originalPrice}
                                         rating={product.rating}
                                         isLiked={likedProducts.has(product._id)}
                                         onToggleLike={toggleLike}
@@ -399,12 +356,8 @@ const Products = () => {
                                 ))}
                             </div>
 
-                            {/* Pagination */}
                             {totalPages > 1 && (
-                                <div
-                                    className="mt-12 flex justify-center items-center gap-3 select-none"
-                                    aria-label="pagination"
-                                >
+                                <div className="mt-12 flex justify-center items-center gap-3 select-none" aria-label="pagination">
                                     <button
                                         onClick={() => goToPage(urlPage - 1)}
                                         disabled={urlPage === 1}
@@ -420,14 +373,7 @@ const Products = () => {
                                         const isEdge = page === 1 || page === totalPages;
                                         if (!isNearCurrent && !isEdge) {
                                             if (page === 2 || page === totalPages - 1) {
-                                                return (
-                                                    <span
-                                                        key={page}
-                                                        className="text-[#818B9C] text-sm"
-                                                    >
-                                                        …
-                                                    </span>
-                                                );
+                                                return <span key={page} className="text-[#818B9C] text-sm">…</span>;
                                             }
                                             return null;
                                         }
@@ -435,13 +381,8 @@ const Products = () => {
                                             <button
                                                 key={page}
                                                 onClick={() => goToPage(page)}
-                                                aria-current={
-                                                    page === urlPage ? 'page' : undefined
-                                                }
-                                                className={`border border-[#C85A3A] rounded-md py-1.5 px-3 cursor-pointer font-semibold text-sm transition-all duration-200 hover:bg-[#C85A3A] hover:text-white ${page === urlPage
-                                                    ? 'bg-[#C85A3A] text-white'
-                                                    : 'bg-transparent text-[#0B0F0E]'
-                                                    }`}
+                                                aria-current={page === urlPage ? 'page' : undefined}
+                                                className={`border border-[#C85A3A] rounded-md py-1.5 px-3 cursor-pointer font-semibold text-sm transition-all duration-200 hover:bg-[#C85A3A] hover:text-white ${page === urlPage ? 'bg-[#C85A3A] text-white' : 'bg-transparent text-[#0B0F0E]'}`}
                                             >
                                                 {page}
                                             </button>

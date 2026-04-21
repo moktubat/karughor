@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { FaPhone, FaCheckCircle, FaSpinner, FaLock, FaEnvelope } from 'react-icons/fa';
 import { MdKeyboardArrowRight } from 'react-icons/md';
 import api from '@/lib/api';
-import { useToast } from '@providers/ToastProvider';
+import { useToast } from '@/providers/ToastProvider';
 
 type Step = 'phone' | 'otp' | 'done';
 type PhoneForm = { phone: string };

@@ -20,6 +20,7 @@ import Image from 'next/image';
 import api from '@/lib/api';
 import { ProductCard } from '@/components/common/ProductCard';
 import { useToast } from '@/providers/ToastProvider';
+import { useLikedProducts } from '@/hooks/useLikedProducts';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,7 @@ const UserProfile = () => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+    const { isLiked, toggleLike } = useLikedProducts();
 
     // ── Queries ────────────────────────────────────────────────────────────────
 
@@ -325,8 +327,8 @@ const UserProfile = () => {
                                         key={id}
                                         onClick={() => setActiveTab(id)}
                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${activeTab === id
-                                                ? 'bg-[#C85A3A] text-white'
-                                                : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
+                                            ? 'bg-[#C85A3A] text-white'
+                                            : 'text-[#0B0F0E] hover:bg-[#F7F7F7]'
                                             }`}
                                     >
                                         <Icon />
@@ -573,7 +575,8 @@ const UserProfile = () => {
                                                 salePrice={`৳${product.price}`}
                                                 originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
                                                 stock={product.stock}
-                                                isLiked={true}
+                                                isLiked={isLiked(product._id)}
+                                                onToggleLike={toggleLike}
                                             />
                                         ))}
                                     </div>

@@ -15,9 +15,13 @@ const clashGrotesk = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Karughor",
-  description: "Handcrafted products marketplace",
+  title: {
+    default: 'Karughor — Handicrafts Products from Bangladesh',
+    template: '%s — Karughor Bangladesh',
+  },
+  description: 'Discover Bangladesh\'s finest handicrafts treasures. Jute rugs, nakshi kantha, bags and more. Delivered with Cash on Delivery.',
 };
+
 
 export default function RootLayout({
   children,

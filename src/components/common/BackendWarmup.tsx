@@ -26,7 +26,7 @@ export default function BackendWarmup() {
                 if (err.name === 'AbortError') return;
 
                 if (!sessionStorage.getItem('warmup_toast_shown')) {
-                    showError('Waking up server, please wait...');
+                    showError('Connecting to server, please wait a moment...');
                     sessionStorage.setItem('warmup_toast_shown', '1');
                 }
             })
