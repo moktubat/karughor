@@ -2,7 +2,7 @@
 
 import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '@/hooks/useLikedProducts';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { MdKeyboardArrowRight, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { FaTimes } from 'react-icons/fa';
@@ -65,13 +65,16 @@ const Products = () => {
         setSortBy(urlSort);
     }, [urlSort]);
 
-    const apiParams: Record<string, string> = {
-        page: String(urlPage),
-        limit: String(ITEMS_PER_PAGE),
-        sort: sortBy,
-    };
-    if (urlCategory) apiParams.category = urlCategory;
-    if (urlSearch) apiParams.search = urlSearch;
+    const apiParams = useMemo<Record<string, string>>(() => {
+        const p: Record<string, string> = {
+            page: String(urlPage),
+            limit: String(ITEMS_PER_PAGE),
+            sort: sortBy,
+        };
+        if (urlCategory) p.category = urlCategory;
+        if (urlSearch) p.search = urlSearch;
+        return p;
+    }, [urlPage, sortBy, urlCategory, urlSearch]);
 
     const { data: productsData, isLoading: productsLoading, isFetching } = useQuery({
         queryKey: productKeys.list(apiParams),
@@ -93,6 +96,8 @@ const Products = () => {
     });
 
     const totalPages = productsData?.pagination?.pages || 1;
+
+    // Prefetch next page — runs only when apiParams or pagination actually changes
     useEffect(() => {
         if (urlPage < totalPages) {
             const nextParams = { ...apiParams, page: String(urlPage + 1) };
@@ -108,7 +113,6 @@ const Products = () => {
         apiCategories && apiCategories.length > 0 ? apiCategories : STATIC_CATEGORIES;
     const products = productsData?.products || [];
 
-    // Total across all products
     const totalAll = categoryCountsMap
         ? Object.values(categoryCountsMap).reduce((sum, n) => sum + n, 0)
         : 0;
@@ -124,6 +128,8 @@ const Products = () => {
         },
         [categories, categoryCountsMap]
     );
+
+    // ── URL update helper ──────────────────────────────────────────────────────
 
     const pushUrl = useCallback(
         (overrides: Record<string, string | undefined>) => {
@@ -153,9 +159,14 @@ const Products = () => {
     const handleSortChange = useCallback(
         (sort: string) => {
             setSortBy(sort);
-            pushUrl({ sort, page: '1' });
+            const params = new URLSearchParams();
+            if (urlCategory) params.set('category', urlCategory);
+            if (urlSearch) params.set('search', urlSearch);
+            params.set('sort', sort);
+            params.set('page', '1');
+            router.push(`/products?${params.toString()}`);
         },
-        [pushUrl]
+        [router, urlCategory, urlSearch]
     );
 
     const handleClearSearch = useCallback(() => {

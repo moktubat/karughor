@@ -126,18 +126,15 @@ const UserProfile = () => {
             });
             return res.data;
         },
-        // Always enabled so orders load on mount; refetch when tab opens
         enabled: !!user,
         retry: 1,
         refetchInterval: activeTab === 'orders' ? 30_000 : false,
     });
 
-    // Refetch whenever the orders tab becomes active
     useEffect(() => {
         if (activeTab === 'orders') refetchOrders();
-    }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab]);
 
-    // Wishlist — always fetch on mount so it's ready when tab opens
     const { data: wishlistData, isLoading: wishlistLoading } = useQuery({
         queryKey: ['userWishlist'],
         queryFn: async () => {
@@ -572,8 +569,8 @@ const UserProfile = () => {
                                                 id={product._id}
                                                 name={product.name}
                                                 image={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
-                                                salePrice={`৳${product.price}`}
-                                                originalPrice={product.originalPrice ? `৳${product.originalPrice}` : undefined}
+                                                price={product.price}
+                                                originalPrice={product.originalPrice}
                                                 stock={product.stock}
                                                 isLiked={isLiked(product._id)}
                                                 onToggleLike={toggleLike}

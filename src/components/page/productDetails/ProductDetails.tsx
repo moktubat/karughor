@@ -17,7 +17,6 @@ import categoryDefaults from '@/lib/categoryDefaults';
 import Link from 'next/link';
 
 
-// ── Moved OUTSIDE ProductDetails to prevent remount on every render ──────────
 type ProductDetailsTabsProps = {
     specifications: Record<string, string>;
     inTheBox: string[];
@@ -435,13 +434,8 @@ const ProductDetails: React.FC = () => {
                                     id={p._id}
                                     name={p.name}
                                     image={p.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}
-                                    salePrice={`৳${p.price}`}
-                                    originalPrice={p.originalPrice ? `৳${p.originalPrice}` : undefined}
-                                    discount={
-                                        p.originalPrice && p.price < p.originalPrice
-                                            ? `${Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)}% Off`
-                                            : undefined
-                                    }
+                                    price={p.price}
+                                    originalPrice={p.originalPrice}
                                     isLiked={likedProducts.has(p._id)}
                                     onToggleLike={toggleLike}
                                 />
