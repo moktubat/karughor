@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fa';
 import api from '@/lib/api';
 import { useToast } from '@/providers/ToastProvider';
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ const OrdersManagement = () => {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
     const { showSuccess, showError } = useToast();
+    useScrollLock(!!selectedOrder);
 
     // ── paginated orders ──────────────────────────────────────────────────────
     const { data, isLoading } = useQuery({

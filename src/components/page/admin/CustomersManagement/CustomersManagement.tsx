@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 import { adminAuthHeaders } from '@/lib/adminAuth';
 import api from '@/lib/api';
-
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 interface DerivedCustomer {
     phone: string;
@@ -28,6 +28,7 @@ interface DerivedCustomer {
 const CustomersManagement = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<DerivedCustomer | null>(null);
+    useScrollLock(!!selectedCustomer);
 
     // Fetch all orders and derive customer data from them
     const { data: ordersRaw, isLoading } = useQuery({

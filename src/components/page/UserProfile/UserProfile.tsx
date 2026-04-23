@@ -21,6 +21,7 @@ import api from '@/lib/api';
 import { ProductCard } from '@/components/common/ProductCard';
 import { useToast } from '@/providers/ToastProvider';
 import { useLikedProducts } from '@/hooks/useLikedProducts';
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,7 @@ const UserProfile = () => {
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
     const { isLiked, toggleLike } = useLikedProducts();
+    useScrollLock(!!cancelConfirmId);
 
     // ── Queries ────────────────────────────────────────────────────────────────
 

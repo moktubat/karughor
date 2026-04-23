@@ -4,7 +4,8 @@ import ProductDetailsSkeleton from '@/components/page/productDetails/ProductDeta
 import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-    const { id } = await params;  // <-- Must await params first!
+    const { id } = await params;
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://karughor.vercel.app';
 
     try {
         const res = await fetch(
@@ -16,14 +17,25 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
         if (!product) return { title: 'Product — Karughor' };
 
+        const description = product.description?.slice(0, 160) || 'Handicrafts product from Bangladesh. Shop at Karughor.';
+        const image = product.images?.[0];
+
         return {
-            title: product.name, 
-            description: product.description?.slice(0, 160) ||
-                'Handicrafts product from Bangladesh. Shop at Karughor.',
+            title: product.name,
+            description,
             openGraph: {
+                title: `${product.name} — Karughor`,
+                description,
+                url: `${BASE_URL}/products/${id}`,
+                siteName: 'Karughor',
+                images: image ? [{ url: image, width: 800, height: 800, alt: product.name }] : [],
+                type: 'website',
+            },
+            twitter: {
+                card: 'summary_large_image',
                 title: product.name,
-                description: product.description?.slice(0, 160),
-                images: product.images?.[0] ? [{ url: product.images[0] }] : [],
+                description,
+                images: image ? [image] : [],
             },
         };
     } catch {

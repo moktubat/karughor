@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 import { MdClose } from 'react-icons/md';
 import { useToast } from '@/providers/ToastProvider';
-
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 interface Product {
     _id: string;
@@ -52,6 +52,7 @@ const ProductsManagement = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { showSuccess, showError } = useToast();
     const [deleteId, setDeleteId] = useState<string | null>(null);
+    useScrollLock(showAddModal || showEditModal || !!deleteId);
 
     const { data, isLoading } = useQuery({
         queryKey: ['admin-products'],
