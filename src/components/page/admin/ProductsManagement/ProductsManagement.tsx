@@ -112,24 +112,65 @@ const ProductsManagement = () => {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: async (id: string) => { await api.delete(`/products/${id}`); },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-            showSuccess('Product deleted successfully!');
+        mutationFn: async (id: string) => {
+            await api.delete(`/products/${id}`);
         },
-        onError: () => {
+
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: ['admin-products'] });
+
+            const previousProducts = queryClient.getQueryData<Product[]>(['admin-products']);
+
+            queryClient.setQueryData<Product[]>(['admin-products'], (old = []) =>
+                old.filter(product => product._id !== id)
+            );
+
+            return { previousProducts };
+        },
+
+        onError: (err, id, context) => {
+            if (context?.previousProducts) {
+                queryClient.setQueryData(['admin-products'], context.previousProducts);
+            }
             showError('Failed to delete product.');
+        },
+
+        onSuccess: () => {
+            showSuccess('Product deleted successfully!');
         },
     });
 
     const toggleMutation = useMutation({
-        mutationFn: async (id: string) => { await api.patch(`/products/${id}/toggle`); },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-            showSuccess('Product status updated!');
+        mutationFn: async (id: string) => {
+            const res = await api.patch(`/products/${id}/toggle`);
+            return res.data;
         },
-        onError: () => {
+
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: ['admin-products'] });
+
+            const previousProducts = queryClient.getQueryData<Product[]>(['admin-products']);
+
+            queryClient.setQueryData<Product[]>(['admin-products'], (old = []) =>
+                old.map(product =>
+                    product._id === id
+                        ? { ...product, isActive: !product.isActive }
+                        : product
+                )
+            );
+
+            return { previousProducts };
+        },
+
+        onError: (err, id, context) => {
+            if (context?.previousProducts) {
+                queryClient.setQueryData(['admin-products'], context.previousProducts);
+            }
             showError('Failed to update product status.');
+        },
+
+        onSuccess: () => {
+            showSuccess('Product status updated successfully!');
         },
     });
 
@@ -307,9 +348,20 @@ const ProductsManagement = () => {
                                                 <div className="flex justify-center">
                                                     <button
                                                         onClick={() => toggleMutation.mutate(product._id)}
-                                                        className={`px-3 py-1 rounded-full text-sm font-semibold transition-all ${product.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                                        disabled={toggleMutation.isPending}
+                                                        className={`px-3 py-1 rounded-full text-sm font-semibold transition-all flex items-center gap-1.5 min-w-[90px] justify-center
+                                                        ${product.isActive
+                                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                            }`}
                                                     >
-                                                        {product.isActive ? <><FaEye className="inline w-3 h-3 mr-1" />Active</> : <><FaEyeSlash className="inline w-3 h-3 mr-1" />Inactive</>}
+                                                        {toggleMutation.isPending ? (
+                                                            <FaSpinner className="animate-spin w-3 h-3" />
+                                                        ) : product.isActive ? (
+                                                            <><FaEye className="w-3 h-3" /> Active</>
+                                                        ) : (
+                                                            <><FaEyeSlash className="w-3 h-3" /> Inactive</>
+                                                        )}
                                                     </button>
                                                 </div>
                                             </td>
