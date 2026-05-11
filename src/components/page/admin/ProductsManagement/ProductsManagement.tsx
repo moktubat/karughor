@@ -160,17 +160,33 @@ const ProductsManagement = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+
         const fd = new FormData();
-        fd.append('name', productForm.name);
+
+        fd.append('name', productForm.name.trim());
         fd.append('category', productForm.category);
         fd.append('price', productForm.price);
         fd.append('stock', productForm.stock);
-        fd.append('description', productForm.description);
-        if (productForm.originalPrice) fd.append('originalPrice', productForm.originalPrice);
-        imageFiles.forEach(f => fd.append('images', f));
-        if (showEditModal) existingImages.forEach(url => fd.append('existingImages', url));
-        if (showEditModal && selectedProduct) {
-            updateMutation.mutate({ id: selectedProduct._id, formData: fd });
+        fd.append('description', productForm.description.trim());
+        if (productForm.originalPrice?.trim()) {
+            fd.append('originalPrice', productForm.originalPrice);
+        }
+
+        imageFiles.forEach(file => {
+            if (file instanceof File && file.size > 0) {
+                fd.append('images', file);
+            }
+        });
+
+        if (showEditModal && existingImages.length > 0) {
+            fd.append('existingImages', JSON.stringify(existingImages.filter(url => url?.startsWith('http'))));
+        }
+
+        if (showEditModal && selectedProduct?._id) {
+            updateMutation.mutate({
+                id: selectedProduct._id,
+                formData: fd
+            });
         } else {
             createMutation.mutate(fd);
         }
