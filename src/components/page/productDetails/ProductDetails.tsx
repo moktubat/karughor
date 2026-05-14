@@ -286,7 +286,7 @@ const ProductDetails: React.FC = () => {
                         role="region"
                         aria-label="Product images"
                     >
-                        <div className="relative w-full aspect-square bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
+                        <div className="relative w-full h-87.5 md:h-125 lg:h-150 bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
                             {images.length > 1 && (
                                 <button
                                     onClick={prevImage}
@@ -297,6 +297,7 @@ const ProductDetails: React.FC = () => {
                                     <FaChevronLeft />
                                 </button>
                             )}
+
                             <Image
                                 src={images[currentImageIndex]}
                                 alt={product.name}
@@ -305,6 +306,7 @@ const ProductDetails: React.FC = () => {
                                 sizes="(max-width: 768px) 100vw, 50vw"
                                 priority
                             />
+
                             {discount && (
                                 <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold">
                                     {discount}% Off
