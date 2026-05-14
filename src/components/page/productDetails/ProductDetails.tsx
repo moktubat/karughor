@@ -14,7 +14,6 @@ import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '@/hooks/useLikedProducts';
 import { useCartStore } from '@/store/cartStore';
 import categoryDefaults from '@/lib/categoryDefaults';
-import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import Link from 'next/link';
 
 
@@ -111,29 +110,6 @@ const ProductDetailsTabs: React.FC<ProductDetailsTabsProps> = ({
         </section>
     );
 };
-
-function resolveCategorySlug(category: string | undefined | null): string | null {
-    if (!category) return null;
-
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const normCat = normalize(category);
-
-    const bySlug = STATIC_CATEGORIES.find(c => c.slug === category.toLowerCase());
-    if (bySlug) return bySlug.slug;
-
-    const byName = STATIC_CATEGORIES.find(
-        c => c.name.toLowerCase() === category.toLowerCase()
-    );
-    if (byName) return byName.slug;
-
-    const byFuzzy = STATIC_CATEGORIES.find(
-        c => normalize(c.name) === normCat || normalize(c.slug) === normCat
-    );
-    if (byFuzzy) return byFuzzy.slug;
-
-    return category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ProductDetails: React.FC = () => {
@@ -168,10 +144,9 @@ const ProductDetails: React.FC = () => {
 
     const product = productData;
 
-    const categorySlug = useMemo(
-        () => resolveCategorySlug(product?.category),
-        [product?.category]
-    );
+    const categorySlug = product?.category
+        ? product.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : null;
     const fallback = categorySlug ? categoryDefaults[categorySlug] ?? null : null;
 
     const specifications =
@@ -246,7 +221,7 @@ const ProductDetails: React.FC = () => {
             <div className="bg-white w-full py-12">
                 <div className="max-w-300 mx-auto px-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-8">
-                        <div className="h-110 bg-gray-100 rounded-lg animate-pulse" />
+                        <div className="aspect-square bg-gray-100 rounded-lg animate-pulse" />
                         <div className="flex flex-col gap-4">
                             <div className="h-8 bg-gray-100 rounded animate-pulse w-3/4" />
                             <div className="h-5 bg-gray-100 rounded animate-pulse w-1/4" />
@@ -304,7 +279,6 @@ const ProductDetails: React.FC = () => {
                 </nav>
 
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-8">
-                    {/* ── Image column ─────────────────────────────────────────── */}
                     <div
                         className="flex flex-col gap-4"
                         onKeyDown={handleKeyDown}
@@ -312,7 +286,7 @@ const ProductDetails: React.FC = () => {
                         role="region"
                         aria-label="Product images"
                     >
-                        <div className="relative w-full h-72 sm:h-96 md:h-115 bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
+                        <div className="relative w-full aspect-square bg-[#F6F6F6] rounded-lg flex items-center justify-center overflow-hidden">
                             {images.length > 1 && (
                                 <button
                                     onClick={prevImage}
@@ -327,12 +301,12 @@ const ProductDetails: React.FC = () => {
                                 src={images[currentImageIndex]}
                                 alt={product.name}
                                 fill
-                                className="object-contain select-none p-2"
+                                className="object-contain select-none"
                                 sizes="(max-width: 768px) 100vw, 50vw"
                                 priority
                             />
                             {discount && (
-                                <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold z-10">
+                                <div className="absolute top-4 left-0 bg-red-600 text-white px-3 py-1.5 rounded-r-lg text-sm font-semibold">
                                     {discount}% Off
                                 </div>
                             )}
@@ -355,14 +329,13 @@ const ProductDetails: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Thumbnails */}
                         {images.length > 1 && (
                             <div className="flex gap-2 md:gap-3 w-full overflow-hidden">
                                 {images.map((img, index) => (
                                     <div
                                         key={index}
                                         onClick={() => setCurrentImageIndex(index)}
-                                        className={`relative flex-1 min-w-0 h-16 sm:h-20 bg-[#F6F6F6] rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${index === currentImageIndex
+                                        className={`relative flex-1 min-w-0 aspect-square bg-[#F6F6F6] rounded-lg border-2 cursor-pointer overflow-hidden transition-all ${index === currentImageIndex
                                             ? 'border-[#C85A3A]'
                                             : 'border-transparent hover:border-[#C85A3A]'
                                             }`}
@@ -371,7 +344,7 @@ const ProductDetails: React.FC = () => {
                                             src={img}
                                             alt={`${product.name} ${index + 1}`}
                                             fill
-                                            className="object-contain p-1"
+                                            className="object-cover"
                                         />
                                     </div>
                                 ))}
@@ -379,7 +352,6 @@ const ProductDetails: React.FC = () => {
                         )}
                     </div>
 
-                    {/* ── Info column ──────────────────────────────────────────── */}
                     <div className="flex flex-col gap-4">
                         <h1 className="text-3xl md:text-4xl font-semibold leading-tight text-[#0B0F0E]">
                             {product.name}

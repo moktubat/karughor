@@ -1,6 +1,6 @@
 export const STATIC_CATEGORIES = [
     { _id: '1', name: 'Jute Rug', slug: 'jute-rug', icon: 'GiBasket', isActive: true, sortOrder: 1, subCategories: [] },
-    { _id: '2', name: "Ladies' Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', isActive: true, sortOrder: 2, subCategories: [] },
+    { _id: '2', name: "Ladies Bags & Purses", slug: 'ladies-bags-purses', icon: 'FaShoppingBag', isActive: true, sortOrder: 2, subCategories: [] },
     { _id: '3', name: 'Planter Baskets', slug: 'planter-baskets', icon: 'GiFlowerPot', isActive: true, sortOrder: 3, subCategories: [] },
     { _id: '4', name: 'Laundry Baskets', slug: 'laundry-baskets', icon: 'MdLocalLaundryService', isActive: true, sortOrder: 4, subCategories: [] },
     { _id: '5', name: 'Shotoronji', slug: 'shotoronji', icon: 'BsGrid3X2Gap', isActive: true, sortOrder: 5, subCategories: [] },
