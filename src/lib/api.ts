@@ -14,16 +14,20 @@ api.interceptors.request.use(
       url.includes('/auth/login') ||
       url.includes('/auth/admin/login') ||
       url.includes('/auth/register');
-    
+
     if (isAuthRoute) return config;
-    
+
     const token = getAdminToken() || getUserToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
-    
-    if (!(config.data instanceof FormData) && !config.headers['Content-Type']) {
+
+    if (config.data instanceof FormData) {
+      // Let the browser set Content-Type with the correct multipart boundary.
+      // Axios sometimes sets 'application/json' which breaks file uploads.
+      delete config.headers['Content-Type'];
+    } else if (!config.headers['Content-Type']) {
       config.headers['Content-Type'] = 'application/json';
     }
-    
+
     return config;
   },
   (error) => Promise.reject(error)
