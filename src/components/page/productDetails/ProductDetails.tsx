@@ -14,6 +14,7 @@ import { ProductCard } from '@/components/common/ProductCard';
 import { useLikedProducts } from '@/hooks/useLikedProducts';
 import { useCartStore } from '@/store/cartStore';
 import categoryDefaults from '@/lib/categoryDefaults';
+import { STATIC_CATEGORIES } from '@/lib/staticCategories';
 import Link from 'next/link';
 
 
@@ -144,9 +145,21 @@ const ProductDetails: React.FC = () => {
 
     const product = productData;
 
-    const categorySlug = product?.category
-        ? product.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        : null;
+    const categorySlug = useMemo(() => {
+        if (!product?.category) return null;
+        // Match by name (case-insensitive) to get the canonical slug directly
+        const matched = STATIC_CATEGORIES.find(
+            (c) => c.name.toLowerCase() === product.category.toLowerCase() ||
+                c.slug === product.category.toLowerCase()
+        );
+        if (matched) return matched.slug;
+        // Fallback: derive slug from whatever string is stored
+        return product.category
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+    }, [product?.category]);
+
     const fallback = categorySlug ? categoryDefaults[categorySlug] ?? null : null;
 
     const specifications =
