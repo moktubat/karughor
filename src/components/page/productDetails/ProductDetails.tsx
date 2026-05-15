@@ -15,7 +15,7 @@ import { useLikedProducts } from '@/hooks/useLikedProducts';
 import { useCartStore } from '@/store/cartStore';
 import categoryDefaults from '@/lib/categoryDefaults';
 import Link from 'next/link';
-
+import { categoryService } from '@/lib/categoryService';
 
 type ProductDetailsTabsProps = {
     specifications: Record<string, string>;
@@ -122,6 +122,12 @@ const ProductDetails: React.FC = () => {
     const { likedProducts, toggleLike } = useLikedProducts();
     const addItem = useCartStore((s) => s.addItem);
 
+    const { data: categories } = useQuery({
+        queryKey: ['categories'],
+        queryFn: categoryService.getAll,
+        staleTime: 5 * 60_000,
+    });
+
     const { data: productData, isLoading, error } = useQuery({
         queryKey: ['product', id],
         queryFn: async () => {
@@ -144,9 +150,20 @@ const ProductDetails: React.FC = () => {
 
     const product = productData;
 
-    const categorySlug = product?.category
-        ? product.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        : null;
+    const categorySlug = useMemo(() => {
+        if (!product?.category) return null;
+        const match = categories?.find(
+            (c) => c.name.toLowerCase() === product.category.toLowerCase()
+        );
+        return (
+            match?.slug ??
+            product.category
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '')
+        );
+    }, [product?.category, categories]);
+
     const fallback = categorySlug ? categoryDefaults[categorySlug] ?? null : null;
 
     const specifications =
@@ -267,7 +284,7 @@ const ProductDetails: React.FC = () => {
                         <>
                             <MdKeyboardArrowRight />
                             <Link
-                                href={`/products?category=${product.category}`}
+                                href={`/products?category=${categorySlug}`}
                                 className="text-[#C85A3A] hover:underline capitalize"
                             >
                                 {product.category.replace(/-/g, ' ')}

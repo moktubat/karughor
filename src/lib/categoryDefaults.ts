@@ -37,7 +37,7 @@ const categoryDefaults: Record<string, CategoryDefault> = {
         ],
     },
 
-    // ── 2. Ladies Bags and Purses ─────────────────────────────────────────────
+    // ── 2. Ladies' Bags and Purses ─────────────────────────────────────────────
     'ladies-bags-purses': {
         specifications: {
             Material: 'Jute / Fabric blend',
